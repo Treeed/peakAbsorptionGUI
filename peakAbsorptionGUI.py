@@ -15,21 +15,16 @@ class ViewData(QtGui.QMainWindow):
         self.widget = QtGui.QWidget()
         self.widget.setLayout(QtGui.QGridLayout())
 
-        # ni=Image.open('SYN_49a_piston_OK.tif')
         ni = Image.open('DAC4-00002MODD.png')  # default_image
         arr = np.array(ni)
         self.imv = pg.ImageView()
 
-        # imv2=pg.ViewBox()
-        # self.widget.addItem(imv2)
 
         button_new_target = QtGui.QPushButton("new target")
         button_new_target.clicked.connect(self.change)
-        # button_new_target.move(600,50)
 
         button_open_file = QtGui.QPushButton("open image")
         button_open_file.clicked.connect(self.open_file)
-        # button_open_file.move(600,100)
 
         button_write_to_file = QtGui.QPushButton("write to file")
         button_write_to_file.clicked.connect(self.write_data)
@@ -41,7 +36,6 @@ class ViewData(QtGui.QMainWindow):
         button_read_file.clicked.connect(self.read_data)
 
         button_move_pellets = QtGui.QPushButton("move pellets")
-        # button_move_pellets.clicked.connect(self.moveAll)
         button_move_pellets.clicked.connect(self.move_all)
 
         button_calibrate = QtGui.QPushButton("calibrate")
@@ -84,7 +78,6 @@ class ViewData(QtGui.QMainWindow):
         self.widget.layout().addWidget(button_calibrate, 6, 0)
         self.widget.layout().addWidget(button_re_arrange, 6, 1)
         self.widget.layout().addWidget(button_add_bs, 6, 2)
-        # self.widget.layout().addWidget(imv2,5,5,3,3)
         self.setCentralWidget(self.widget)
         self.show()
 
@@ -102,7 +95,6 @@ class ViewData(QtGui.QMainWindow):
 
 
     def open_file(self):
-        # pdb.set_trace()
         file_handling = QtGui.QFileDialog()
         file_handling.setFileMode(QtGui.QFileDialog.AnyFile)
         if file_handling.exec_():
@@ -220,9 +212,6 @@ class ViewData(QtGui.QMainWindow):
             self.wait_move(self.motoy)
             self.motoy.position = 400 - self.roiPos[i][1]
             self.wait_move(self.motoy)
-            # self.motoy.position = 400 - self.roiPos[i][1] - self.yBacklash
-            # while (self.motoy.state() == tango.DevState.MOVING):
-            #	time.sleep(0.01)
             self.gripper.value = 0
             time.sleep(2)
             self.motox.position = 0
@@ -233,14 +222,12 @@ class ViewData(QtGui.QMainWindow):
 
 
     def move_all(self):
-        # pdb.set_trace()
         self.gripper.value = 0
         time.sleep(2)
         self.roiPosOld = self.roiPos
         bs_list = self.make_bs_list(self.amount)
         self.roiPos = self.calc_ind(self.roiPos)
         self.roiPos = self.sort_ind(self.roiPos, 2)
-        # pdb.set_trace()
 
         for i in range(0, len(self.roiPos)):
             self.motox.position = bs_list[i][0]
