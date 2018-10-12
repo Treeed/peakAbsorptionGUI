@@ -42,7 +42,7 @@ class ViewData(QtGui.QMainWindow):
 
         button_move_pellets = QtGui.QPushButton("move pellets")
         # button_move_pellets.clicked.connect(self.moveAll)
-        button_move_pellets.clicked.connect(self.move_all_new)
+        button_move_pellets.clicked.connect(self.move_all)
 
         button_calibrate = QtGui.QPushButton("calibrate")
         button_calibrate.clicked.connect(self.calibrate)
@@ -107,8 +107,6 @@ class ViewData(QtGui.QMainWindow):
         self.roiSize.append([20, 20])
         print self.roiPos
 
-    def show_positions(self):
-        print self.roiPos
 
     def open_file(self):
         # pdb.set_trace()
@@ -161,60 +159,10 @@ class ViewData(QtGui.QMainWindow):
             self.roiAll[len(self.roiAll) - 1].sigRegionChanged.connect(self.update)
             self.imv.addItem(self.roiAll[len(self.roiAll) - 1])
 
-    def move_pellets(self):
-        print 'movePellets'
-        # pdb.set_trace()
-        print self.roiPos[0][0]
-        print self.roiPos[0][1]
-        # print "circle %i :" %x, self.roiAll[0].pos(), self.roiAll[0].size()
-        # str1='p02/motor/eh1a.16'
-        self.gripper.value = 0
-        self.motox.position = 0
-        self.wait_move(self.motox)
-        self.motoy.position = 0
-        self.wait_move(self.motoy)
-        time.sleep(2)
-        self.gripper.value = 1
-        self.motox.position = self.roiPos[0][0]
-        self.wait_move(self.motoy)
-        self.motoy.position = 400 - self.roiPos[0][1] - self.yBacklash
-        self.wait_move(self.motoy)
-        time.sleep(2)
-
-    def move_all(self):
-        # pdb.set_trace()
-        self.roiPosOld = self.roiPos
-        self.gripper.value = 0
-        self.motox.position = 0
-        self.wait_move(self.motox)
-        self.motoy.position = 0
-        self.wait_move(self.motoy)
-        for i in range(0, len(self.roiPos)):
-            self.gripper.value = 1
-            time.sleep(2)
-            self.motox.position = self.roiPos[i][0]
-            self.wait_move(self.motoy)
-            self.motoy.position = 400 - self.roiPos[i][1] - self.yBacklash
-            self.wait_move(self.motoy)
-            self.gripper.value = 0
-            time.sleep(2)
-            self.motox.position = 0
-            self.wait_move(self.motox)
-            self.motoy.position = 0
-            self.wait_move(self.motoy)
 
     def wait_move(self, motor):
         while motor.state() == tango.DevState.MOVING:
             time.sleep(0.01)
-
-    def move_bs(self, axis, position):
-        self.axis.position = position
-        while self.axis.state() == tango.DevState.MOVING:
-            time.sleep(0.01)
-
-
-    def test(self):
-        print self.roiPos
 
 
     def make_bs_list(self, amount):
@@ -254,11 +202,6 @@ class ViewData(QtGui.QMainWindow):
     def calc_vec_len(self, xn, x0, yn, y0):
         length = math.sqrt(pow((xn - x0), 2) + pow((yn - y0), 2))
         return length
-
-
-    def calc_alpha_mod(self, alpha_i, alpha_j):
-        alpha_mod = (alpha_j - alpha_i) / 2 + alpha_i
-        return alpha_mod
 
 
     def add_bs(self):
@@ -319,7 +262,7 @@ class ViewData(QtGui.QMainWindow):
         self.roiPosOld = self.roiPos
 
 
-    def move_all_new(self):
+    def move_all(self):
         # pdb.set_trace()
         self.gripper.value = 0
         time.sleep(2)
