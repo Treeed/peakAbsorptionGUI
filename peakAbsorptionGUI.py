@@ -1,4 +1,4 @@
-from PyQt4 import QtGui, QtCore
+from PyQt4 import QtGui
 import sys
 import pyqtgraph as pg
 import numpy as np
@@ -60,8 +60,8 @@ class ViewData(QtGui.QMainWindow):
         self.roiPos = []  # create_list only for position data
         self.roiSize = []  # create_list which contains updated sizes of rois
         self.roiPosOld = []  # create roi pos list which is later used as buffer
-        self.filenames = QtCore.QStringList()
-        self.filenames.append('DAC4-00002MODD.png')
+        self.filenames = str()
+        self.filenames += ('DAC4-00002MODD.png')
 
         self.roiPos.append([80, 50, 0])  # first_roi_default_position
         self.roiSize.append([20, 20])  # first_roi_default_size
