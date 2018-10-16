@@ -2,7 +2,7 @@ from PyQt4 import QtGui
 import sys
 import pyqtgraph as pg
 import numpy as np
-from PIL import Image
+import fabio
 import pickle
 import time
 import math
@@ -15,8 +15,8 @@ class ViewData(QtGui.QMainWindow):
         self.widget = QtGui.QWidget()
         self.widget.setLayout(QtGui.QGridLayout())
 
-        ni = Image.open('DAC4-00002MODD.png')  # default_image
-        arr = np.array(ni)
+        ni = fabio.open('LaB6_SDD1210-00268.tif')  # default_image
+        arr = np.array(ni.data)
         self.imv = pg.ImageView()
 
 
@@ -100,8 +100,8 @@ class ViewData(QtGui.QMainWindow):
         if file_handling.exec_():
             self.filenames = file_handling.selectedFiles()
             name = self.filenames[0]
-            ni = Image.open(str(name))
-            arr = np.array(ni)
+            ni = fabio.open(str(name))
+            arr = np.array(ni.data)
             self.imv = pg.ImageView()
             self.imv.setImage(arr)
             self.widget.layout().addWidget(self.imv, 0, 0, 3, 3)
