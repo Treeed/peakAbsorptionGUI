@@ -35,3 +35,6 @@ class BeamstopManager:
             new_list[i].append(0)
             new_list[i][3] = new_list[0][2] * math.tan(
                 math.pi / 180 * self.calc_alpha(new_list[i][0], bs[0], new_list[i][1], bs[1]) - target[0][3])
+
+def calc_vec_len(x1, x2, y1, y2):
+    return math.sqrt(pow((x1 - x2), 2) + pow((y1 - y2), 2))
