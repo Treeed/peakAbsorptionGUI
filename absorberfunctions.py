@@ -35,7 +35,7 @@ class BeamstopManager:
         combinations, distances = self.calc_beamstop_assignment(handle_postions, beamstop_inactive_cost * (not self.absorber_hardware.beamstop_active))
         #TODO: find best path (including moving out)
         epsilon = 0.0001  # beamstops that are offset from their target below this value are considered floating point errors and will not be moved
-        required_moves = [(combination[1], handle_postions[combination[0]]) for combination in np.swapaxes(combinations[distances > epsilon], 0, 1)]
+        required_moves = [(combination[1], handle_postions[combination[0]]) for combination in combinations[distances > epsilon], 0, 1]
         np.delete(self.absorber_hardware.beamstops, combinations[:,1])[np.delete(not self.absorber_hardware.beamstop_active, combinations[:,1])]
         #required_moves.extend(stuff with targets
         for move in required_moves:
