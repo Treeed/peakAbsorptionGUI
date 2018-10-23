@@ -1,4 +1,4 @@
-from PyQt4 import QtGui
+from PyQt5 import QtGui
 import pyqtgraph as pg
 
 import absorberfunctions
@@ -39,7 +39,10 @@ class ViewData(QtGui.QMainWindow):
         button_calibrate.clicked.connect(self.absorber_hardware.calibrate)
 
         button_re_arrange = QtGui.QPushButton("rearrange")
-        button_re_arrange.clicked.connect(self.absorber_hardware.rearrange)
+        button_re_arrange.clicked.connect(self.beamstops.move_all_beamstops)
+
+        test = QtGui.QPushButton("test")
+        test.clicked.connect(self.beamstops.add_teststop)
 
 
         self.widget.layout().addWidget(self.im_view, 0, 0, 3, 3)
@@ -51,6 +54,7 @@ class ViewData(QtGui.QMainWindow):
         self.widget.layout().addWidget(button_read_file, 5, 2)
         self.widget.layout().addWidget(button_calibrate, 6, 0)
         self.widget.layout().addWidget(button_re_arrange, 6, 1)
+        self.widget.layout().addWidget(test, 6, 2)
         self.setCentralWidget(self.widget)
         self.show()
 

@@ -20,8 +20,8 @@ class PeakAbsorberHardware:
         self._motor_x = tango.DeviceProxy(_motor_x_path)
         self._motor_y = tango.DeviceProxy(_motor_y_path)
 
-        self.active_beamstops = []
-        self.inactive_beamstops = []
+        self.beamstops = []
+        self.beamstop_active = []
 
     def rearrange(self):
         ch_list = []
@@ -89,8 +89,12 @@ class PeakAbsorberHardware:
         self._motor_x.slewrate = slew_buf_x
         self._motor_y.slewrate = slew_buf_y
 
+    def move_beamstop(self, beamstop, target):
+        pass
+
     def move_to(self, pos, slewrate = "beamstop"):
         traveldistance = absorberfunctions.calc_vec_len(self._motor_x.position, pos[0], self._motor_y.position, pos[1])
+        # calculate slewrates at which the motors will reach their target values simultanously and the total grabber speed matches the set slewrate
         self._motor_x.slewrate = pos[0] * self._slewrates[slewrate] / traveldistance
         self._motor_y.slewrate = pos[1] * self._slewrates[slewrate] / traveldistance
         self._motor_x.position = pos[0]
