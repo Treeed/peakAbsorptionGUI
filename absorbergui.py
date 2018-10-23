@@ -1,4 +1,4 @@
-from PyQt4 import QtGui
+from PyQt5 import QtGui
 import pyqtgraph as pg
 
 import absorberfunctions
@@ -15,7 +15,7 @@ class ViewData(QtGui.QMainWindow):
 
         self.file_handler = fileio.FileHandler(self.im_view, self.widget)
         self.absorber_hardware = hardware.PeakAbsorberHardware()
-        self.beamstops = absorberfunctions.BeamstopManager(self.im_view)
+        self.beamstops = absorberfunctions.BeamstopManager(self.im_view, self.absorber_hardware)
 
         button_new_target = QtGui.QPushButton("new beamstop")
         button_new_target.clicked.connect(self.beamstops.add_handle)

@@ -1,5 +1,5 @@
 import pickle
-from PyQt4 import QtGui
+from PyQt5 import QtGui
 import fabio
 
 class FileHandler:
@@ -31,6 +31,7 @@ class FileHandler:
             self.imv.addItem(self.roiAll[len(self.roiAll) - 1])
 
     def open_file(self):
-        file_name = QtGui.QFileDialog.getOpenFileName(self.parent_widget, "Open Image");
-        arr = fabio.open(str(file_name)).data
-        self.im_view.setImage(arr)
+        file_name, _ = QtGui.QFileDialog.getOpenFileName(self.parent_widget, "Open Image");
+        if file_name:
+            arr = fabio.open(str(file_name)).data
+            self.im_view.setImage(arr)
