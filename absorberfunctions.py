@@ -26,29 +26,35 @@ class BeamstopManager:
 
 
 
-    def move_all_beamstops(self):
+    def rearrange_all_beamstops(self):
         self.absorber_hardware.beamstops = np.array([handle.pos() for handle in self.teststops])
 
-        handle_postions = np.array([handle.pos() for handle in self.beamstop_handles])
+        handle_positions = np.array([handle.pos() for handle in self.beamstop_handles])
 
         beamstop_inactive_cost = 500 #how much virtual distance (mm) is added to penalise moving extra beamstops into the active area
-        combinations, distances = self.calc_beamstop_assignment(handle_postions, beamstop_inactive_cost * (not self.absorber_hardware.beamstop_active))
+        combinations, distances = self.calc_beamstop_assignment(handle_positions, beamstop_inactive_cost * (not self.absorber_hardware.beamstop_active))
         #TODO: find best path (including moving out)
         epsilon = 0.0001  # beamstops that are offset from their target below this value are considered floating point errors and will not be moved
-        required_moves = [(combination[1], handle_postions[combination[0]]) for combination in combinations[distances > epsilon], 0, 1]
-        np.delete(self.absorber_hardware.beamstops, combinations[:,1])[np.delete(not self.absorber_hardware.beamstop_active, combinations[:,1])]
+        required_moves = [(combination[0], handle_positions[combination[1]]) for combination in np.swapaxes(combinations, 0, 1)[distances > epsilon]]
+        #reststops = np.delete(self.absorber_hardware.beamstops, combinations[:,1])[np.delete(not self.absorber_hardware.beamstop_active, combinations[:,1])]
         #required_moves.extend(stuff with targets
-        for move in required_moves:
-            self.absorber_hardware.move_beamstop(move[0], move[1])
+        self.move_beamstops(required_moves)
         #TODO: active beamstops
         #TODO: when using extra beamstops dont check for moving out
         np.setdiff1d(range(len()))
 
+    def move_beamstops(self, required_moves):
+        for move in required_moves:
+            tt = pg.LineSegmentROI([self.absorber_hardware.beamstops[move[0]], move[1]])
+            self.im_view.addItem(tt)
+            # self.absorber_hardware.move_beamstop(move[0], move[1])
+
+    #returns combinations of [beamstops, target_positions] and the distances between the two
     def calc_beamstop_assignment(self, target_positions, penalty):
         #calculate distances from all beamstop targets to all beamstops and add penalties for suboptimal beamstops. Penalty list must have length of beamstop list
         distances = calc_vec_len(target_positions - self.absorber_hardware.beamstops[:,np.newaxis]) + penalty
         combinations = np.array(scipy.optimize.linear_sum_assignment(distances))
-        return combinations, distances[combinations]
+        return combinations, distances[tuple(combinations)]
 
     def calcnextbs(self):
         new_list = []

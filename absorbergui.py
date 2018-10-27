@@ -39,7 +39,7 @@ class ViewData(QtGui.QMainWindow):
         button_calibrate.clicked.connect(self.absorber_hardware.calibrate)
 
         button_re_arrange = QtGui.QPushButton("rearrange")
-        button_re_arrange.clicked.connect(self.beamstops.move_all_beamstops)
+        button_re_arrange.clicked.connect(self.beamstops.rearrange_all_beamstops)
 
         test = QtGui.QPushButton("test")
         test.clicked.connect(self.beamstops.add_teststop)
