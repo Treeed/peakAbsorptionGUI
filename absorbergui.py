@@ -32,12 +32,6 @@ class ViewData(QtGui.QMainWindow):
         button_read_file = QtGui.QPushButton("read file")
         button_read_file.clicked.connect(self.file_handler.read_data)
 
-        button_move_pellets = QtGui.QPushButton("move pellets")
-        button_move_pellets.clicked.connect(self.absorber_hardware.move_all)
-
-        button_calibrate = QtGui.QPushButton("calibrate")
-        button_calibrate.clicked.connect(self.absorber_hardware.calibrate)
-
         button_re_arrange = QtGui.QPushButton("rearrange")
         button_re_arrange.clicked.connect(self.beamstops.rearrange_all_beamstops)
 
@@ -50,9 +44,7 @@ class ViewData(QtGui.QMainWindow):
         self.widget.layout().addWidget(button_open_file, 4, 1)
         self.widget.layout().addWidget(button_write_to_file, 4, 2)
         self.widget.layout().addWidget(button_reset_all_beamstops, 5, 0)
-        self.widget.layout().addWidget(button_move_pellets, 5, 1)
         self.widget.layout().addWidget(button_read_file, 5, 2)
-        self.widget.layout().addWidget(button_calibrate, 6, 0)
         self.widget.layout().addWidget(button_re_arrange, 6, 1)
         self.widget.layout().addWidget(test, 6, 2)
         self.setCentralWidget(self.widget)
