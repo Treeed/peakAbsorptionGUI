@@ -1,4 +1,3 @@
-import pickle
 from PyQt5 import QtGui
 import fabio
 
