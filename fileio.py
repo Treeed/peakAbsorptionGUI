@@ -10,4 +10,4 @@ class FileHandler:
         file_name, _ = QtGui.QFileDialog.getOpenFileName(self.parent_widget, "Open Image")
         if file_name:
             arr = fabio.open(str(file_name)).data
-            self.im_view.setImage(arr)
+            self.im_view.set_image(arr)

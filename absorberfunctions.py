@@ -1,39 +1,22 @@
-import pyqtgraph as pg
 import numpy as np
 import scipy.optimize
-import pyqtgraphutils
+
+import absorbergui
 
 class BeamstopManager:
     def __init__(self, im_view, absorber_hardware):
         self.im_view = im_view
         self.absorber_hardware = absorber_hardware
 
-        self.handles = [] # movable handles to specify the targets where the beamstops will be moved
-        self.beamstop_circles = []
-
-    def reset_all(self):
-        for beamstop in self.handles:
-            self.im_view.removeItem(beamstop)
-        #TODO: reset the physical beamstops to their original positions
-
-    def add_handle(self):
-        self.handles.append(pg.CircleROI([100, 100], [50, 50], pen=(9, 15)))
-        self.im_view.addItem(self.handles[-1])
-
-#testing
-    def add_teststops(self):
-        teststops = self.absorber_hardware.parking_positions
-        self.absorber_hardware.add_beamstops(teststops)
-        for beamstop in teststops:
-            self.beamstop_circles.append(self.circle_in_machine_coord(beamstop, color ='r'))
-            self.im_view.addItem(self.beamstop_circles[-1])
-
-
     def rearrange_all_beamstops(self):
-        if len(self.handles) > len(self.absorber_hardware.beamstops):
+        if len(self.im_view.items["handles"]) > len(self.absorber_hardware.beamstops):
             print("not enough beamstops available") #error
             return
-        handle_positions = self.get_handles_machine_coords()
+        if len(self.im_view.items["handles"]) == 0:
+            print("no handles")
+            return
+
+        handle_positions = self.im_view.get_handles_machine_coords()
         #TODO: get machine coordinates
         #TODO: check behaviour without elements
         beamstop_inactive_cost = 500 #how much virtual distance (mm) is added to penalise moving extra beamstops into the active area #config
@@ -54,35 +37,17 @@ class BeamstopManager:
 
         self.move_beamstops(required_moves)
 
-    def get_handles_machine_coords(self):
-        return np.array([self.img_to_machine_coord(np.array(handle.pos())+np.array(handle.size())/2) for handle in self.handles])
+
 
     def move_beamstops(self, required_moves):
         #TODO: find best path
         for move in required_moves:
-            trajectory = pyqtgraphutils.LineSegmentItem(self.machine_to_img_coord(self.absorber_hardware.beamstops[move[0]]), self.machine_to_img_coord(move[1]))
-            self.im_view.addItem(trajectory)
-            self.absorber_hardware.move_beamstop(move[0], move[1])
-            self.im_view.removeItem(trajectory)
-            self.beamstop_circles[move[0]].setCenter(self.machine_to_img_coord(move[1]))
+            with absorbergui.DrawTempLineInMachCoord(self.im_view,self.absorber_hardware.beamstops[move[0]], move[1]):
+                self.absorber_hardware.move_beamstop(move[0], move[1])
+                self.im_view.move_circle_in_machine_coord(move[0], move[1])
+        #TODO: home afterwards
 
 
-    def img_to_machine_coord(self, point):
-        return np.array(point)*self.absorber_hardware.pixel_size+self.absorber_hardware.detector_origin
-
-    def machine_to_img_coord(self, point):
-        return (np.array(point)-self.absorber_hardware.detector_origin)/self.absorber_hardware.pixel_size
-
-    def img_to_machine_scale(self, point):
-        return np.array(point) * self.absorber_hardware.pixel_size
-
-    def machine_to_img_scale(self, point):
-        return np.array(point) / self.absorber_hardware.pixel_size
-
-    def circle_in_machine_coord(self, pos, radius = None, color = 'w'):
-        if radius is None:
-            radius = self.absorber_hardware.beamstop_radius
-        return pyqtgraphutils.CircleItem(self.machine_to_img_coord(pos), self.machine_to_img_scale(radius)[0], color)
 
 
 #returns combinations of [beamstops, target_positions] and the distances between the two

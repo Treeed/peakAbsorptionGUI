@@ -4,7 +4,7 @@ import absorbergui
 
 def main():
     app = QtGui.QApplication(sys.argv)
-    vd = absorbergui.ViewData()
+    vd = absorbergui.MainWindow()
     vd.show()
     app.exec_()
 
