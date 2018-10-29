@@ -12,26 +12,30 @@ class BeamstopManager:
         if len(self.im_view.items["handles"]) > len(self.absorber_hardware.beamstops):
             print("not enough beamstops available") #error
             return
-        if len(self.im_view.items["handles"]) == 0:
-            print("no handles")
-            return
+
 
         handle_positions = self.im_view.get_handles_machine_coords()
         #TODO: get machine coordinates
         #TODO: check behaviour without elements
-        beamstop_inactive_cost = 500 #how much virtual distance (mm) is added to penalise moving extra beamstops into the active area #config
-        target_combinations, target_distances = calc_beamstop_assignment(self.absorber_hardware.beamstops, handle_positions, beamstop_inactive_cost * np.logical_not(self.absorber_hardware.beamstop_active))
+        if handle_positions.size > 0:
+            beamstop_inactive_cost = 500 #how much virtual distance (mm) is added to penalise moving extra beamstops into the active area #config
+            target_combinations, target_distances = calc_beamstop_assignment(self.absorber_hardware.beamstops, handle_positions, beamstop_inactive_cost * np.logical_not(self.absorber_hardware.beamstop_active))
 
-        epsilon = 0.0001  # beamstops that are offset from their target below this value are considered floating point errors and will not be moved #config
-        required_moves = [(combination[0], handle_positions[combination[1]]) for combination in np.swapaxes(target_combinations, 0, 1)[target_distances > epsilon]]
+            epsilon = 0.0001  # beamstops that are offset from their target below this value are considered floating point errors and will not be moved #config
+            required_moves = [(combination[0], handle_positions[combination[1]]) for combination in np.swapaxes(target_combinations, 0, 1)[target_distances > epsilon]]
 
-        reststops = np.delete(range(len(self.absorber_hardware.beamstops)), target_combinations[0])[np.delete(self.absorber_hardware.beamstop_active, target_combinations[0])]
-        free_parking_positions = self.absorber_hardware.parking_positions[np.logical_not(self.absorber_hardware.parking_position_occupied)]
+            reststops = np.delete(range(len(self.absorber_hardware.beamstops)), target_combinations[0])[np.delete(self.absorber_hardware.beamstop_active, target_combinations[0])]
+        else:
+            reststops = range(len(self.absorber_hardware.beamstops))
+            required_moves = []
 
-        if reststops.size > free_parking_positions.size:
-            print("not enough parking space available") #error
-            return
         if reststops.size > 0:
+            free_parking_positions = self.absorber_hardware.parking_positions[np.logical_not(self.absorber_hardware.parking_position_occupied)]
+
+            if reststops.size > free_parking_positions.size:
+                print("not enough parking space available")  # error
+                return
+
             rest_combinations, _ = calc_beamstop_assignment(self.absorber_hardware.beamstops[reststops], free_parking_positions)
             required_moves.extend([reststops[rest_combinations[0]], free_parking_positions[rest_combinations[1]]])
 

@@ -169,6 +169,7 @@ class PeakAbsorberHardware:
 
         self.beamstop_active[beamstop] = check_in_box(target, self.detector_origin, self.active_area)
         self.beamstops[beamstop] = target
+        #TODO: check whether it starts/stops occupying a parking position
 
     def engage_gripper(self):
         pass
