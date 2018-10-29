@@ -178,10 +178,11 @@ class PeakAbsorberHardware:
 
     def move_to(self, pos, slewrate = "beamstop"):
         #TODO: handle errors
-        travel_distance = absorberfunctions.calc_vec_len([self._motor_x.position - pos[0], self._motor_y.position - pos[1]])
+        distance = [self._motor_x.position - pos[0], self._motor_y.position - pos[1]]
+        travel_distance = absorberfunctions.calc_vec_len([distance[0], distance[1]])
         # calculate slewrates at which the motors will reach their target values simultaneously and the total grabber speed matches the set slewrate
-        self._motor_x.slewrate = pos[0] * self._slewrates[slewrate] / travel_distance
-        self._motor_y.slewrate = pos[1] * self._slewrates[slewrate] / travel_distance
+        self._motor_x.slewrate = abs(distance[0]) * self._slewrates[slewrate] / travel_distance
+        self._motor_y.slewrate = abs(distance[1]) * self._slewrates[slewrate] / travel_distance
         self._motor_x.position = pos[0]
         self._motor_y.position = pos[1]
         wait_move(self._motor_x)
