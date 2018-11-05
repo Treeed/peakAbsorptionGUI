@@ -3,6 +3,7 @@ import scipy.optimize
 
 import absorbergui
 
+
 class BeamstopMover:
     def __init__(self, im_view, absorber_hardware, beamstop_manager):
         self.im_view = im_view
@@ -11,15 +12,14 @@ class BeamstopMover:
 
     def rearrange_all_beamstops(self):
         if len(self.im_view.items["handles"]) > len(self.beamstop_manager.beamstops):
-            print("not enough beamstops available") #error
+            print("not enough beamstops available")  # error
             return
 
-
         handle_positions = self.im_view.get_handles_machine_coords()
-        #TODO: get machine coordinates
-        #TODO: check behaviour without elements
+        # TODO: get machine coordinates
+        # TODO: check behaviour without elements
         if handle_positions.size > 0:
-            beamstop_inactive_cost = 500 #how much virtual distance (mm) is added to penalise moving extra beamstops into the active area #config
+            beamstop_inactive_cost = 500  # how much virtual distance (mm) is added to penalise moving extra beamstops into the active area #config
             target_combinations, target_distances = calc_beamstop_assignment(self.beamstop_manager.beamstops, handle_positions, beamstop_inactive_cost * self.beamstop_manager.beamstop_parked.astype(np.bool_))
 
             epsilon = 0.0001  # beamstops that are offset from their target below this value are considered floating point errors and will not be moved #config
@@ -42,16 +42,15 @@ class BeamstopMover:
 
         self.move_beamstops(required_moves)
 
-
-
     def move_beamstops(self, required_moves):
-        #TODO: find best path
+        # TODO: find best path
         for move in required_moves:
             with absorbergui.DrawTempLineInMachCoord(self.im_view, move.get_beamstop_pos(), move.get_target_pos()):
                 self.absorber_hardware.move_beamstop(move)
                 self.im_view.move_circle_in_machine_coord(move.beamstop_nr, move.get_target_pos())
-                #TODO: leave it to update_pos and the move to draw these things instead
-        #TODO: home afterwards
+                # TODO: leave it to update_pos and the move to draw these things instead
+        # TODO: home afterwards
+
 
 class BeamstopManager:
     def __init__(self):
@@ -191,7 +190,6 @@ class BeamstopManager:
         self.beamstop_parked = np.concatenate([self.beamstop_parked, parking_nrs+1])
         self.beamstops = np.concatenate([self.beamstops, self.parking_positions[parking_nrs]])
 
-
     def occupy_parking_position(self, parking_nr, beamstop_nr):
         if self.parking_position_occupied[parking_nr]:
             raise ValueError("cannot put beamstop on occupied parking position")
@@ -206,15 +204,14 @@ class BeamstopManager:
         self.parking_position_occupied[parking_nr] = 0
 
 
-
 class BeamstopMoveTarget:
     def __init__(self, beamstop_manager, beamstop_nr, targetpos):
         self.beamstop_nr = beamstop_nr
-        self.targetpos = targetpos
+        self.target_pos = targetpos
         self.beamstop_manager = beamstop_manager
 
     def get_target_pos(self):
-        return self.targetpos
+        return self.target_pos
 
     def get_beamstop_pos(self):
         return self.beamstop_manager.beamstops[self.beamstop_nr]
@@ -225,35 +222,37 @@ class BeamstopMoveTarget:
 
     def update_pos(self, pos):
         pass
-        #TODO: draw line, update circle
+        # TODO: draw line, update circle
+
 
 class BeamstopMoveParking(BeamstopMoveTarget):
     def __init__(self, beamstop_manager, beamstop_nr, parking_nr):
         self.beamstop_manager = beamstop_manager
         self.beamstop_nr = beamstop_nr
         self.parking_nr = parking_nr
-        self.targetpos = self.beamstop_manager.parking_positions[parking_nr]
+        self.target_pos = self.beamstop_manager.parking_positions[parking_nr]
 
     def finish_move(self):
         self.beamstop_manager.beamstops[self.beamstop_nr] = self.get_target_pos()
         self.beamstop_manager.occupy_parking_position(self.parking_nr, self.beamstop_nr)
 
 
-#returns combinations of [beamstops, target_positions] and the distances between the two
-def calc_beamstop_assignment(beamstops, target_positions, penalties = None):
+# returns combinations of [beamstops, target_positions] and the distances between the two
+def calc_beamstop_assignment(beamstops, target_positions, penalties=None):
     if not beamstops.size:
         return np.array([]), np.array([])
     if not target_positions.size:
         return np.array([]), np.array([])
 
-    #calculate distances from all beamstop targets to all beamstops and add penalties for suboptimal beamstops. Penalty list must have length of beamstop list
-    distances = calc_vec_len(target_positions - beamstops[:,np.newaxis])
+    # calculate distances from all beamstop targets to all beamstops and add penalties for suboptimal beamstops. Penalty list must have length of beamstop list
+    distances = calc_vec_len(target_positions - beamstops[:, np.newaxis])
     if penalties is not None:
-        penalised_distances =  distances + penalties[:,np.newaxis]
+        penalised_distances = distances + penalties[:, np.newaxis]
     else:
         penalised_distances = distances
     combinations = np.array(scipy.optimize.linear_sum_assignment(penalised_distances))
     return combinations, distances[tuple(combinations)]
+
 
 # get the length of a vector or list of vectors
 def calc_vec_len(vec):

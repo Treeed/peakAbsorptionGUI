@@ -1,6 +1,7 @@
 from PyQt5 import QtGui
 import fabio
 
+
 class FileHandler:
     def __init__(self, im_view, parent_widget):
         self.im_view = im_view

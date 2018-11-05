@@ -7,6 +7,7 @@ import absorberfunctions
 import fileio
 import hardware
 
+
 class MainWindow(QtGui.QMainWindow):
     def __init__(self):
         super().__init__()
@@ -18,7 +19,6 @@ class MainWindow(QtGui.QMainWindow):
         self.image_view = ImageDrawer(self.absorber_hardware, self.beamstop_manager)
         self.file_handler = fileio.FileHandler(self.image_view, self.widget)
         self.beamstop_mover = absorberfunctions.BeamstopMover(self.image_view, self.absorber_hardware, self.beamstop_manager)
-
 
         button_new_target = QtGui.QPushButton("new handle")
         button_new_target.clicked.connect(self.image_view.add_handle)
@@ -35,7 +35,6 @@ class MainWindow(QtGui.QMainWindow):
         test = QtGui.QPushButton("test")
         test.clicked.connect(self.image_view.add_teststops)
 
-
         self.widget.layout().addWidget(self.image_view.im_view, 0, 0, 3, 3)
         self.widget.layout().addWidget(button_new_target, 4, 0)
         self.widget.layout().addWidget(button_open_file, 4, 1)
@@ -44,8 +43,6 @@ class MainWindow(QtGui.QMainWindow):
         self.widget.layout().addWidget(test, 6, 2)
         self.setCentralWidget(self.widget)
         self.show()
-
-
 
 
 class ImageDrawer:
@@ -66,7 +63,7 @@ class ImageDrawer:
         self.draw_absorber_geometry()
 
     def draw_absorber_geometry(self):
-        self.box_in_machine_coords("limit_box", [0, 0],self.absorber_hardware.limits)
+        self.box_in_machine_coords("limit_box", [0, 0], self.absorber_hardware.limits)
         self.box_in_machine_coords("detector_box", self.absorber_hardware.detector_origin, self.absorber_hardware.active_area)
         for parking_position in self.beamstop_manager.parking_positions:
             self.circle_in_machine_coord("parking_spots", parking_position)
@@ -83,29 +80,26 @@ class ImageDrawer:
     def machine_to_img_scale(self, point):
         return np.array(point) / self.absorber_hardware.pixel_size
 
-
-    def box_in_machine_coords(self, purpose, pos, size, color = 'w'):
+    def box_in_machine_coords(self, purpose, pos, size, color='w'):
         box = pyqtgraphutils.RectangleItem(self.machine_to_img_coord(pos), self.machine_to_img_scale(size), color)
         self.im_view.addItem(box)
         self.items[purpose].append(box)
 
-    def circle_in_machine_coord(self, purpose, pos, radius = None, color ='w'):
+    def circle_in_machine_coord(self, purpose, pos, radius=None, color='w'):
         if radius is None:
             radius = self.absorber_hardware.beamstop_radius
         circle = pyqtgraphutils.CircleItem(self.machine_to_img_coord(pos), self.machine_to_img_scale(radius)[0], color)
         self.im_view.addItem(circle)
         self.items[purpose].append(circle)
 
-    def move_circle_in_machine_coord(self,circle_nr,  pos):
+    def move_circle_in_machine_coord(self, circle_nr,  pos):
         self.items["beamstop_circles"][circle_nr].setCenter(self.machine_to_img_coord(pos))
 
     def add_handle(self):
-        handle = pg.CircleROI([100, 100], [50, 50], pen=(9, 15), removable = True)
+        handle = pg.CircleROI([100, 100], [50, 50], pen=(9, 15), removable=True)
         handle.sigRemoveRequested.connect(self.remove_handle)
         self.im_view.addItem(handle)
         self.items["handles"].append(handle)
-
-
 
     def set_image(self, array):
             self.im_view.setImage(array)
@@ -119,7 +113,7 @@ class ImageDrawer:
         self.im_view.removeItem(handle)
         self.items["handles"].remove(handle)
 
-#testing
+    # testing
     def add_teststops(self):
         teststops = self.beamstop_manager.parking_positions
         self.beamstop_manager.add_beamstops(np.arange(len(teststops)))
@@ -130,6 +124,7 @@ class ImageDrawer:
     def get_handles_machine_coords(self):
         return np.array([self.img_to_machine_coord(np.array(handle.pos())+np.array(handle.size())/2) for handle in self.items["handles"]])
 
+
 class DrawTempLineInMachCoord:
     def __init__(self, im_view, pos1, pos2):
         self.im_view = im_view
@@ -137,8 +132,7 @@ class DrawTempLineInMachCoord:
         self.pos2 = pos2
 
     def __enter__(self):
-        self.line = pyqtgraphutils.LineSegmentItem(self.im_view.machine_to_img_coord(self.pos1),
-                                       self.im_view.machine_to_img_coord(self.pos2))
+        self.line = pyqtgraphutils.LineSegmentItem(self.im_view.machine_to_img_coord(self.pos1), self.im_view.machine_to_img_coord(self.pos2))
         self.im_view.im_view.addItem(self.line)
 
     def __exit__(self, exc_type, exc_val, exc_tb):

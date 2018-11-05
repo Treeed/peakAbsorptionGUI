@@ -2,6 +2,7 @@ from PyQt5 import QtGui
 import sys
 import absorbergui
 
+
 def main():
     app = QtGui.QApplication(sys.argv)
     vd = absorbergui.MainWindow()
