@@ -2,6 +2,7 @@ import time
 import tango
 import absorberfunctions
 import numpy as np
+from PyQt5.QtGui import QApplication
 
 
 class PeakAbsorberHardware:
@@ -60,6 +61,7 @@ class PeakAbsorberHardware:
 def wait_move(motor):
     while motor.state() == tango.DevState.MOVING:
         time.sleep(0.01)  # config
+        QApplication.processEvents()
 
 
 def check_in_box(pos, box_origin, box_size):
