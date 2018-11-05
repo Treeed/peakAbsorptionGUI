@@ -13,11 +13,11 @@ class MainWindow(QtGui.QMainWindow):
         self.widget = QtGui.QWidget()
         self.widget.setLayout(QtGui.QGridLayout())
 
-
+        self.beamstop_manager = absorberfunctions.BeamstopManager()
         self.absorber_hardware = hardware.PeakAbsorberHardware()
-        self.image_view = ImageDrawer(self.absorber_hardware)
+        self.image_view = ImageDrawer(self.absorber_hardware, self.beamstop_manager)
         self.file_handler = fileio.FileHandler(self.image_view, self.widget)
-        self.beamstops = absorberfunctions.BeamstopManager(self.image_view, self.absorber_hardware)
+        self.beamstop_mover = absorberfunctions.BeamstopMover(self.image_view, self.absorber_hardware, self.beamstop_manager)
 
 
         button_new_target = QtGui.QPushButton("new handle")
@@ -30,7 +30,7 @@ class MainWindow(QtGui.QMainWindow):
         button_reset_all_beamstops.clicked.connect(self.image_view.reset_all_handles)
 
         button_re_arrange = QtGui.QPushButton("rearrange")
-        button_re_arrange.clicked.connect(self.beamstops.rearrange_all_beamstops)
+        button_re_arrange.clicked.connect(self.beamstop_mover.rearrange_all_beamstops)
 
         test = QtGui.QPushButton("test")
         test.clicked.connect(self.image_view.add_teststops)
@@ -49,8 +49,9 @@ class MainWindow(QtGui.QMainWindow):
 
 
 class ImageDrawer:
-    def __init__(self, absorber_hardware):
+    def __init__(self, absorber_hardware, beamstop_manager):
         self.absorber_hardware = absorber_hardware
+        self.beamstop_manager = beamstop_manager
         self.im_view = pg.ImageView()
         self.im_view.getView().invertY(False)
 
@@ -67,7 +68,7 @@ class ImageDrawer:
     def draw_absorber_geometry(self):
         self.box_in_machine_coords("limit_box", [0, 0],self.absorber_hardware.limits)
         self.box_in_machine_coords("detector_box", self.absorber_hardware.detector_origin, self.absorber_hardware.active_area)
-        for parking_position in self.absorber_hardware.parking_positions:
+        for parking_position in self.beamstop_manager.parking_positions:
             self.circle_in_machine_coord("parking_spots", parking_position)
 
     def img_to_machine_coord(self, point):
@@ -120,10 +121,11 @@ class ImageDrawer:
 
 #testing
     def add_teststops(self):
-        teststops = self.absorber_hardware.parking_positions
-        self.absorber_hardware.add_beamstops(teststops)
+        teststops = self.beamstop_manager.parking_positions
+        self.beamstop_manager.add_beamstops(np.arange(len(teststops)))
         for beamstop in teststops:
-            self.circle_in_machine_coord("beamstop_circles", beamstop, color ='r')
+            self.circle_in_machine_coord("beamstop_circles", beamstop, color='r')
+        # TODO: where to draw the circles? "add beamstops"?
 
     def get_handles_machine_coords(self):
         return np.array([self.img_to_machine_coord(np.array(handle.pos())+np.array(handle.size())/2) for handle in self.items["handles"]])
