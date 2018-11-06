@@ -1,7 +1,8 @@
 import numpy as np
 import scipy.optimize
+from PyQt5.QtCore import QTimer
 
-import absorbergui
+import pyqtgraphutils
 
 
 class BeamstopMover:
@@ -23,7 +24,7 @@ class BeamstopMover:
             target_combinations, target_distances = calc_beamstop_assignment(self.beamstop_manager.beamstops, handle_positions, beamstop_inactive_cost * self.beamstop_manager.beamstop_parked.astype(np.bool_))
 
             epsilon = 0.0001  # beamstops that are offset from their target below this value are considered floating point errors and will not be moved #config
-            required_moves = [BeamstopMoveTarget(self.beamstop_manager, combination[0], handle_positions[combination[1]]) for combination in np.swapaxes(target_combinations, 0, 1)[target_distances > epsilon]]
+            required_moves = [BeamstopMoveTarget(self.beamstop_manager, self.im_view, combination[0], handle_positions[combination[1]]) for combination in np.swapaxes(target_combinations, 0, 1)[target_distances > epsilon]]
 
             reststops = np.delete(np.arange(self.beamstop_manager.beamstops.shape[0]), target_combinations[0])[np.delete(np.logical_not(self.beamstop_manager.beamstop_parked), target_combinations[0])]
         else:
@@ -38,17 +39,16 @@ class BeamstopMover:
                 return
 
             rest_combinations, _ = calc_beamstop_assignment(self.beamstop_manager.beamstops[reststops], self.beamstop_manager.parking_positions[free_parking_position_nrs])
-            required_moves.extend(BeamstopMoveParking(self.beamstop_manager, reststops[combination[0]], free_parking_position_nrs[combination[1]]) for combination in np.swapaxes(rest_combinations, 0, 1))
+            required_moves.extend(BeamstopMoveParking(self.beamstop_manager, self.im_view, reststops[combination[0]], free_parking_position_nrs[combination[1]]) for combination in np.swapaxes(rest_combinations, 0, 1))
 
         self.move_beamstops(required_moves)
 
     def move_beamstops(self, required_moves):
         # TODO: find best path
+        updater = MovementUpdater(self.im_view, self.absorber_hardware)
         for move in required_moves:
-            with absorbergui.DrawTempLineInMachCoord(self.im_view, move.get_beamstop_pos(), move.get_target_pos()):
-                self.absorber_hardware.move_beamstop(move)
-                self.im_view.move_circle_in_machine_coord(move.beamstop_nr, move.get_target_pos())
-                # TODO: leave it to update_pos and the move to draw these things instead
+            self.absorber_hardware.move_beamstop(move, updater)
+        updater.quit()
         # TODO: home afterwards
 
 
@@ -205,10 +205,21 @@ class BeamstopManager:
 
 
 class BeamstopMoveTarget:
-    def __init__(self, beamstop_manager, beamstop_nr, targetpos):
+    def __init__(self, beamstop_manager, im_view, beamstop_nr, targetpos):
         self.beamstop_nr = beamstop_nr
         self.target_pos = targetpos
         self.beamstop_manager = beamstop_manager
+        self.im_view = im_view
+
+        self.add_line()
+
+    def add_line(self):
+        # this should be done via a function in ImageDrawer but I haven't figured out how to manage the lines yet
+        self.line = pyqtgraphutils.LineSegmentItem(self.im_view.machine_to_img_coord(self.target_pos), self.im_view.machine_to_img_coord(self.get_beamstop_pos()))
+        self.im_view.im_view.addItem(self.line)
+
+    def remove_line(self):
+        self.im_view.im_view.removeItem(self.line)
 
     def get_target_pos(self):
         return self.target_pos
@@ -219,22 +230,54 @@ class BeamstopMoveTarget:
     def finish_move(self):
         self.beamstop_manager.beamstops[self.beamstop_nr] = self.get_target_pos()
         self.beamstop_manager.free_parking_position(self.beamstop_nr)
+        self.remove_line()
 
     def update_pos(self, pos):
-        pass
+        self.im_view.move_circle_in_machine_coord(self.beamstop_nr, pos)
+        self.line.pos()
         # TODO: draw line, update circle
 
 
 class BeamstopMoveParking(BeamstopMoveTarget):
-    def __init__(self, beamstop_manager, beamstop_nr, parking_nr):
+    def __init__(self, beamstop_manager, im_view, beamstop_nr, parking_nr):
         self.beamstop_manager = beamstop_manager
         self.beamstop_nr = beamstop_nr
         self.parking_nr = parking_nr
         self.target_pos = self.beamstop_manager.parking_positions[parking_nr]
+        self.im_view = im_view
+
+        self.add_line()
 
     def finish_move(self):
         self.beamstop_manager.beamstops[self.beamstop_nr] = self.get_target_pos()
         self.beamstop_manager.occupy_parking_position(self.parking_nr, self.beamstop_nr)
+        self.remove_line()
+
+
+class MovementUpdater:
+    def __init__(self, im_view, absorber_hardware, polling_rate=60):
+        self.im_view = im_view
+        self.absorber_hardware = absorber_hardware
+        self.polling_rate = polling_rate
+
+        self.current_move = None
+
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.update)
+        self.timer.start(1000/polling_rate)
+
+    def update(self):
+        status = self.absorber_hardware.get_hardware_status()
+        if self.current_move is not None:
+            self.current_move.update_pos((status[0][0], status[0][1]))
+
+    def set_current_move(self, move):
+        self.update()
+        self.current_move = move
+
+    def quit(self):
+        self.update()
+        self.timer.stop()
 
 
 # returns combinations of [beamstops, target_positions] and the distances between the two

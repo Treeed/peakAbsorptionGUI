@@ -123,17 +123,3 @@ class ImageDrawer:
 
     def get_handles_machine_coords(self):
         return np.array([self.img_to_machine_coord(np.array(handle.pos())+np.array(handle.size())/2) for handle in self.items["handles"]])
-
-
-class DrawTempLineInMachCoord:
-    def __init__(self, im_view, pos1, pos2):
-        self.im_view = im_view
-        self.pos1 = pos1
-        self.pos2 = pos2
-
-    def __enter__(self):
-        self.line = pyqtgraphutils.LineSegmentItem(self.im_view.machine_to_img_coord(self.pos1), self.im_view.machine_to_img_coord(self.pos2))
-        self.im_view.im_view.addItem(self.line)
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.im_view.im_view.removeItem(self.line)

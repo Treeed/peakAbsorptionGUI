@@ -28,19 +28,23 @@ class PeakAbsorberHardware:
         self._motor_x = tango.DeviceProxy(_tango_server + _motor_x_path)
         self._motor_y = tango.DeviceProxy(_tango_server + _motor_y_path)
 
-    def move_beamstop(self, move):
+    def move_beamstop(self, move, updater):
         self.move_to(move.get_beamstop_pos(), "travel")
         self.engage_gripper()
+        updater.set_current_move(move)
         self.move_to(move.get_target_pos(), "beamstop")
+        updater.set_current_move(None)
         self.disengage_gripper()
 
         move.finish_move()
 
     def engage_gripper(self):
-        pass
+        self._gripper.value = 1
+        time.sleep(2)
 
     def disengage_gripper(self):
-        pass
+        self._gripper.value = 0
+        time.sleep(2)
 
     def move_to(self, pos, slewrate="beamstop"):
         # TODO: handle errors
@@ -56,6 +60,11 @@ class PeakAbsorberHardware:
         self._motor_y.position = pos[1]
         wait_move(self._motor_x)
         wait_move(self._motor_y)
+
+    def get_hardware_status(self):
+        pos = self._motor_x.position, self._motor_y.position, self._gripper.value
+        state = self._motor_x.state(), self._motor_y.state(), self._gripper.state()
+        return pos, state
 
 
 def wait_move(motor):
