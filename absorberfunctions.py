@@ -1,6 +1,7 @@
 import numpy as np
 import scipy.optimize
-from PyQt5.QtCore import QTimer
+from PyQt5.QtCore import QTimer, pyqtSignal, QObject
+import tango
 
 import pyqtgraphutils
 
@@ -254,8 +255,11 @@ class BeamstopMoveParking(BeamstopMoveTarget):
         self.remove_line()
 
 
-class MovementUpdater:
+class MovementUpdater(QObject):
+    moveFinished = pyqtSignal()
+
     def __init__(self, im_view, absorber_hardware, polling_rate=60):
+        super().__init__()
         self.im_view = im_view
         self.absorber_hardware = absorber_hardware
         self.polling_rate = polling_rate
@@ -268,6 +272,8 @@ class MovementUpdater:
 
     def update(self):
         status = self.absorber_hardware.get_hardware_status()
+        if status[1][0] != tango.DevState.MOVING and status[1][1] != tango.DevState.MOVING:
+            self.moveFinished.emit()
         if self.current_move is not None:
             self.current_move.update_pos((status[0][0], status[0][1]))
 
