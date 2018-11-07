@@ -231,9 +231,8 @@ class BeamstopMoveTarget:
         self.remove_line()
 
     def update_pos(self, pos):
-        self.im_view.move_circle_in_machine_coord(self.beamstop_nr, pos)
+        self.im_view.move_circle_in_machine_coord("beamstop_circles", self.beamstop_nr, pos)
         self.trajectory_line.pos()
-        # TODO: draw line, update circle
 
 
 class BeamstopMoveParking(BeamstopMoveTarget):

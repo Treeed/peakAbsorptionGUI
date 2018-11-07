@@ -84,18 +84,16 @@ class ImageDrawer:
 
     def box_in_machine_coords(self, purpose, pos, size, color='w'):
         box = pyqtgraphutils.RectangleItem(self.machine_to_img_coord(pos), self.machine_to_img_scale(size), color)
-        self.im_view.addItem(box)
-        self.items[purpose].append(box)
+        self.add_graphics_item(box, purpose)
 
     def circle_in_machine_coord(self, purpose, pos, radius=None, color='w'):
         if radius is None:
             radius = self.absorber_hardware.beamstop_radius
         circle = pyqtgraphutils.CircleItem(self.machine_to_img_coord(pos), self.machine_to_img_scale(radius)[0], color)
-        self.im_view.addItem(circle)
-        self.items[purpose].append(circle)
+        self.add_graphics_item(circle, purpose)
 
-    def move_circle_in_machine_coord(self, circle_nr,  pos):
-        self.items["beamstop_circles"][circle_nr].setCenter(self.machine_to_img_coord(pos))
+    def move_circle_in_machine_coord(self, purpose, circle_nr,  pos):
+        self.items[purpose][circle_nr].setCenter(self.machine_to_img_coord(pos))
 
     def add_graphics_item(self, item, purpose):
         self.im_view.addItem(item)
@@ -104,8 +102,7 @@ class ImageDrawer:
     def add_handle(self):
         handle = pg.CircleROI([100, 100], [50, 50], pen=(9, 15), removable=True)
         handle.sigRemoveRequested.connect(self.remove_handle)
-        self.im_view.addItem(handle)
-        self.items["handles"].append(handle)
+        self.add_graphics_item(handle, "handles")
 
     def set_image(self, array):
             self.im_view.setImage(array)
