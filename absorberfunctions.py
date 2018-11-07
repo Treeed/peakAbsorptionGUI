@@ -46,7 +46,7 @@ class BeamstopMover:
         # TODO: find best path
         for move in required_moves:
             self.absorber_hardware.move_beamstop(move)
-        # TODO: home afterwards
+        self.absorber_hardware.go_home()
 
 
 class BeamstopManager:

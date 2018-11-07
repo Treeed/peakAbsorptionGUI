@@ -66,6 +66,9 @@ class PeakAbsorberHardware:
         state = self._motor_x.state(), self._motor_y.state(), self._gripper.state()
         return pos, state
 
+    def go_home(self):
+        self.move_to([0, 0], "travel")
+
 
 class MovementUpdater(QObject):
     moveFinished = pyqtSignal()
