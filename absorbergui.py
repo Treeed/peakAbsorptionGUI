@@ -57,10 +57,12 @@ class ImageDrawer:
             "beamstop_circles": [],
             "parking_spots": [],
             "limit_box": [],
-            "detector_box": []
+            "detector_box": [],
+            "crosshair": []
         }
 
         self.draw_absorber_geometry()
+        self.init_crosshair()
 
     def draw_absorber_geometry(self):
         self.box_in_machine_coords("limit_box", [0, 0], self.absorber_hardware.limits)
@@ -95,6 +97,10 @@ class ImageDrawer:
     def move_circle_in_machine_coord(self, circle_nr,  pos):
         self.items["beamstop_circles"][circle_nr].setCenter(self.machine_to_img_coord(pos))
 
+    def add_graphics_item(self, item, purpose):
+        self.im_view.addItem(item)
+        self.items[purpose].append(item)
+
     def add_handle(self):
         handle = pg.CircleROI([100, 100], [50, 50], pen=(9, 15), removable=True)
         handle.sigRemoveRequested.connect(self.remove_handle)
@@ -123,3 +129,15 @@ class ImageDrawer:
 
     def get_handles_machine_coords(self):
         return np.array([self.img_to_machine_coord(np.array(handle.pos())+np.array(handle.size())/2) for handle in self.items["handles"]])
+
+    def init_crosshair(self):
+        line_x = pg.InfiniteLine(0, 90, pg.mkPen('g'))
+        line_y = pg.InfiniteLine(0, 0, pg.mkPen('g'))
+        self.add_graphics_item(line_x, "crosshair")
+        self.add_graphics_item(line_y, "crosshair")
+        self.absorber_hardware.updater.posChanged.connect(self.set_crosshair_pos)
+
+    def set_crosshair_pos(self, pos):
+        img_pos = self.machine_to_img_coord(pos)
+        self.items["crosshair"][0].setValue(img_pos[0])
+        self.items["crosshair"][1].setValue(img_pos[1])

@@ -71,6 +71,7 @@ class PeakAbsorberHardware:
 
 class MovementUpdater(QObject):
     moveFinished = pyqtSignal()
+    posChanged = pyqtSignal(tuple)
 
     def __init__(self, absorber_hardware):
         super().__init__()
@@ -80,6 +81,7 @@ class MovementUpdater(QObject):
         self.moving = False
 
         self.current_move = None
+        self.last_status = None
 
         self.timer = QTimer()
         self.timer.timeout.connect(self.update)
@@ -92,18 +94,19 @@ class MovementUpdater(QObject):
             self.set_idle()
         if self.current_move is not None:
             self.current_move.update_pos((status[0][0], status[0][1]))
+        if self.last_status != status:
+            self.posChanged.emit((status[0][0], status[0][1]))
+            self.last_status = status
 
     def set_current_move(self, move):
         self.update()
         self.current_move = move
 
     def set_idle(self):
-        print("idle")
         self.moving = False
         self.timer.setInterval(self.idle_polling_rate)
 
     def set_moving(self):
-        print("moving")
         self.moving = True
         self.timer.setInterval(self.moving_polling_rate)
 
