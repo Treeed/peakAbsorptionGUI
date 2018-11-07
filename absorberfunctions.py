@@ -208,15 +208,16 @@ class BeamstopMoveTarget:
         self.beamstop_manager = beamstop_manager
         self.im_view = im_view
 
+        self.trajectory_line = None
         self.add_line()
 
     def add_line(self):
         # this should be done via a function in ImageDrawer but I haven't figured out how to manage the lines yet
-        self.line = pyqtgraphutils.LineSegmentItem(self.im_view.machine_to_img_coord(self.target_pos), self.im_view.machine_to_img_coord(self.get_beamstop_pos()))
-        self.im_view.im_view.addItem(self.line)
+        self.trajectory_line = pyqtgraphutils.LineSegmentItem(self.im_view.machine_to_img_coord(self.target_pos), self.im_view.machine_to_img_coord(self.get_beamstop_pos()))
+        self.im_view.im_view.addItem(self.trajectory_line)
 
     def remove_line(self):
-        self.im_view.im_view.removeItem(self.line)
+        self.im_view.im_view.removeItem(self.trajectory_line)
 
     def get_target_pos(self):
         return self.target_pos
@@ -231,7 +232,7 @@ class BeamstopMoveTarget:
 
     def update_pos(self, pos):
         self.im_view.move_circle_in_machine_coord(self.beamstop_nr, pos)
-        self.line.pos()
+        self.trajectory_line.pos()
         # TODO: draw line, update circle
 
 
