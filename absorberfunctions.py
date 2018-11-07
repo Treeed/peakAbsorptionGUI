@@ -1,7 +1,5 @@
 import numpy as np
 import scipy.optimize
-from PyQt5.QtCore import QTimer, pyqtSignal, QObject
-import tango
 
 import pyqtgraphutils
 
@@ -46,10 +44,8 @@ class BeamstopMover:
 
     def move_beamstops(self, required_moves):
         # TODO: find best path
-        updater = MovementUpdater(self.im_view, self.absorber_hardware)
         for move in required_moves:
-            self.absorber_hardware.move_beamstop(move, updater)
-        updater.quit()
+            self.absorber_hardware.move_beamstop(move)
         # TODO: home afterwards
 
 
@@ -62,124 +58,124 @@ class BeamstopManager:
                                            [10, 50],
                                            [10, 60],
                                            [10, 70],
-                                           [10, 80]])
-        # [ 10,  90],
-        # [ 10, 100],
-        # [ 10, 110],
-        # [ 10, 120],
-        # [ 10, 130],
-        # [ 10, 140],
-        # [ 10, 150],
-        # [ 10, 160],
-        # [ 10, 170],
-        # [ 10, 180],
-        # [ 10, 190],
-        # [ 10, 200],
-        # [ 10, 210],
-        # [ 10, 220],
-        # [ 10, 230],
-        # [ 10, 240],
-        # [ 10, 250],
-        # [ 10, 260],
-        # [ 10, 270],
-        # [ 10, 280],
-        # [ 10, 290],
-        # [ 10, 300],
-        # [ 10, 310],
-        # [ 10, 320],
-        # [ 10, 330],
-        # [ 10, 340],
-        # [ 10, 350],
-        # [ 10, 360],
-        # [ 10, 370],
-        # [ 10, 380],
-        # [ 10, 390],
-        # [ 20, 390],
-        # [ 30, 390],
-        # [ 40, 390],
-        # [ 50, 390],
-        # [ 60, 390],
-        # [ 70, 390],
-        # [ 80, 390],
-        # [ 90, 390],
-        # [100, 390],
-        # [110, 390],
-        # [120, 390],
-        # [130, 390],
-        # [140, 390],
-        # [150, 390],
-        # [160, 390],
-        # [170, 390],
-        # [180, 390],
-        # [190, 390],
-        # [200, 390],
-        # [210, 390],
-        # [220, 390],
-        # [230, 390],
-        # [240, 390],
-        # [250, 390],
-        # [260, 390],
-        # [270, 390],
-        # [280, 390],
-        # [290, 390],
-        # [300, 390],
-        # [310, 390],
-        # [320, 390],
-        # [330, 390],
-        # [340, 390],
-        # [350, 390],
-        # [360, 390],
-        # [370, 390],
-        # [380, 390],
-        # [390, 390],
-        # [400, 390],
-        # [410, 390],
-        # [420, 390],
-        # [430, 390],
-        # [440, 390],
-        # [450, 390],
-        # [460, 390],
-        # [470, 390],
-        # [480, 390],
-        # [490, 390],
-        # [490, 380],
-        # [490, 370],
-        # [490, 360],
-        # [490, 350],
-        # [490, 340],
-        # [490, 330],
-        # [490, 320],
-        # [490, 310],
-        # [490, 300],
-        # [490, 290],
-        # [490, 280],
-        # [490, 270],
-        # [490, 260],
-        # [490, 250],
-        # [490, 240],
-        # [490, 230],
-        # [490, 220],
-        # [490, 210],
-        # [490, 200],
-        # [490, 190],
-        # [490, 180],
-        # [490, 170],
-        # [490, 160],
-        # [490, 150],
-        # [490, 140],
-        # [490, 130],
-        # [490, 120],
-        # [490, 110],
-        # [490, 100],
-        # [490,  90],
-        # [490,  80],
-        # [490,  70],
-        # [490,  60],
-        # [490,  50],
-        # [490,  40],
-        # [490,  30],
-        # [490,  20],
-        # [490,  10]])  # config #testing
+                                           [10, 80],
+        [ 10,  90],
+        [ 10, 100],
+        [ 10, 110],
+        [ 10, 120],
+        [ 10, 130],
+        [ 10, 140],
+        [ 10, 150],
+        [ 10, 160],
+        [ 10, 170],
+        [ 10, 180],
+        [ 10, 190],
+        [ 10, 200],
+        [ 10, 210],
+        [ 10, 220],
+        [ 10, 230],
+        [ 10, 240],
+        [ 10, 250],
+        [ 10, 260],
+        [ 10, 270],
+        [ 10, 280],
+        [ 10, 290],
+        [ 10, 300],
+        [ 10, 310],
+        [ 10, 320],
+        [ 10, 330],
+        [ 10, 340],
+        [ 10, 350],
+        [ 10, 360],
+        [ 10, 370],
+        [ 10, 380],
+        [ 10, 390],
+        [ 20, 390],
+        [ 30, 390],
+        [ 40, 390],
+        [ 50, 390],
+        [ 60, 390],
+        [ 70, 390],
+        [ 80, 390],
+        [ 90, 390],
+        [100, 390],
+        [110, 390],
+        [120, 390],
+        [130, 390],
+        [140, 390],
+        [150, 390],
+        [160, 390],
+        [170, 390],
+        [180, 390],
+        [190, 390],
+        [200, 390],
+        [210, 390],
+        [220, 390],
+        [230, 390],
+        [240, 390],
+        [250, 390],
+        [260, 390],
+        [270, 390],
+        [280, 390],
+        [290, 390],
+        [300, 390],
+        [310, 390],
+        [320, 390],
+        [330, 390],
+        [340, 390],
+        [350, 390],
+        [360, 390],
+        [370, 390],
+        [380, 390],
+        [390, 390],
+        [400, 390],
+        [410, 390],
+        [420, 390],
+        [430, 390],
+        [440, 390],
+        [450, 390],
+        [460, 390],
+        [470, 390],
+        [480, 390],
+        [490, 390],
+        [490, 380],
+        [490, 370],
+        [490, 360],
+        [490, 350],
+        [490, 340],
+        [490, 330],
+        [490, 320],
+        [490, 310],
+        [490, 300],
+        [490, 290],
+        [490, 280],
+        [490, 270],
+        [490, 260],
+        [490, 250],
+        [490, 240],
+        [490, 230],
+        [490, 220],
+        [490, 210],
+        [490, 200],
+        [490, 190],
+        [490, 180],
+        [490, 170],
+        [490, 160],
+        [490, 150],
+        [490, 140],
+        [490, 130],
+        [490, 120],
+        [490, 110],
+        [490, 100],
+        [490,  90],
+        [490,  80],
+        [490,  70],
+        [490,  60],
+        [490,  50],
+        [490,  40],
+        [490,  30],
+        [490,  20],
+        [490,  10]])  # config #testing
         self.beamstops = np.empty((0, 2))
         self.beamstop_parked = np.empty(0, dtype=np.int)
         self.parking_position_occupied = np.zeros(len(self.parking_positions), dtype=np.int)  # testing
@@ -253,37 +249,6 @@ class BeamstopMoveParking(BeamstopMoveTarget):
         self.beamstop_manager.beamstops[self.beamstop_nr] = self.get_target_pos()
         self.beamstop_manager.occupy_parking_position(self.parking_nr, self.beamstop_nr)
         self.remove_line()
-
-
-class MovementUpdater(QObject):
-    moveFinished = pyqtSignal()
-
-    def __init__(self, im_view, absorber_hardware, polling_rate=60):
-        super().__init__()
-        self.im_view = im_view
-        self.absorber_hardware = absorber_hardware
-        self.polling_rate = polling_rate
-
-        self.current_move = None
-
-        self.timer = QTimer()
-        self.timer.timeout.connect(self.update)
-        self.timer.start(1000/polling_rate)
-
-    def update(self):
-        status = self.absorber_hardware.get_hardware_status()
-        if status[1][0] != tango.DevState.MOVING and status[1][1] != tango.DevState.MOVING:
-            self.moveFinished.emit()
-        if self.current_move is not None:
-            self.current_move.update_pos((status[0][0], status[0][1]))
-
-    def set_current_move(self, move):
-        self.update()
-        self.current_move = move
-
-    def quit(self):
-        self.update()
-        self.timer.stop()
 
 
 # returns combinations of [beamstops, target_positions] and the distances between the two

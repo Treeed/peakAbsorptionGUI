@@ -1,7 +1,7 @@
 import tango
 import absorberfunctions
 import numpy as np
-from PyQt5.QtCore import QEventLoop, QTimer
+from PyQt5.QtCore import QEventLoop, QTimer, pyqtSignal, QObject
 
 
 class PeakAbsorberHardware:
@@ -28,12 +28,14 @@ class PeakAbsorberHardware:
         self._motor_x = tango.DeviceProxy(_tango_server + _motor_x_path)
         self._motor_y = tango.DeviceProxy(_tango_server + _motor_y_path)
 
-    def move_beamstop(self, move, updater):
-        self.move_to(move.get_beamstop_pos(), updater.moveFinished, "travel")
+        self.updater = MovementUpdater(self)
+
+    def move_beamstop(self, move):
+        self.move_to(move.get_beamstop_pos(), "travel")
         self.engage_gripper()
-        updater.set_current_move(move)
-        self.move_to(move.get_target_pos(), updater.moveFinished, "beamstop")
-        updater.set_current_move(None)
+        self.updater.set_current_move(move)
+        self.move_to(move.get_target_pos(), "beamstop")
+        self.updater.set_current_move(None)
         self.disengage_gripper()
 
         move.finish_move()
@@ -46,7 +48,7 @@ class PeakAbsorberHardware:
         self._gripper.value = 0
         wait(self.gripper_time_ms)
 
-    def move_to(self, pos, finished_signal, slewrate="beamstop"):
+    def move_to(self, pos, slewrate="beamstop"):
         # TODO: handle errors
         distance = [self._motor_x.position - pos[0], self._motor_y.position - pos[1]]
         travel_distance = absorberfunctions.calc_vec_len([distance[0], distance[1]])
@@ -58,13 +60,56 @@ class PeakAbsorberHardware:
         self._motor_y.slewrate = abs(distance[1]) * self._slewrates[slewrate] / travel_distance
         self._motor_x.position = pos[0]
         self._motor_y.position = pos[1]
-        # TODO: I don't like needing to pass the signal to a simple function like this
-        wait(100000, finished_signal)  # config
+        self.updater.set_moving()
+        wait(100000, self.updater.moveFinished)  # config
 
     def get_hardware_status(self):
         pos = self._motor_x.position, self._motor_y.position, self._gripper.value
         state = self._motor_x.state(), self._motor_y.state(), self._gripper.state()
         return pos, state
+
+
+class MovementUpdater(QObject):
+    moveFinished = pyqtSignal()
+
+    def __init__(self, absorber_hardware):
+        super().__init__()
+        self.absorber_hardware = absorber_hardware
+        self.idle_polling_rate = 5  # config
+        self.moving_polling_rate = 60  # config
+        self.moving = False
+
+        self.current_move = None
+
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.update)
+        self.timer.start(1000/self.idle_polling_rate)
+
+    def update(self):
+        status = self.absorber_hardware.get_hardware_status()
+        if self.moving and status[1][0] != tango.DevState.MOVING and status[1][1] != tango.DevState.MOVING:
+            self.moveFinished.emit()
+            self.set_idle()
+        if self.current_move is not None:
+            self.current_move.update_pos((status[0][0], status[0][1]))
+
+    def set_current_move(self, move):
+        self.update()
+        self.current_move = move
+
+    def set_idle(self):
+        print("idle")
+        self.moving = False
+        self.timer.setInterval(self.idle_polling_rate)
+
+    def set_moving(self):
+        print("moving")
+        self.moving = True
+        self.timer.setInterval(self.moving_polling_rate)
+
+    def quit(self):
+        self.update()
+        self.timer.stop()
 
 
 def wait(timeout, signal = None):
