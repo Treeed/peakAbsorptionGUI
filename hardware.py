@@ -15,6 +15,7 @@ class PeakAbsorberHardware:
             "travel": 100000,
             "beamstop": 100000,
             "homing": 1000,
+            "homing_precise": 100,
         }  # config
 
         self.limits = np.array([500, 400])  # limits of the drive mechanism #config
@@ -24,6 +25,7 @@ class PeakAbsorberHardware:
         self.beamstop_radius = 1.5  # config
         self.gripper_time_ms = 2000  # config
         self.timeout_ms = 10000  # config
+        self.limit_switch_max_hysterisis = [10, 10]  # distance in mm we need to move out of the limit switch to make sure it definitely turns off  # config
 
         self._gripper = tango.DeviceProxy(_tango_server + _gripper_path)
         self._motor_x = tango.DeviceProxy(_tango_server + _motor_x_path)
@@ -59,7 +61,7 @@ class PeakAbsorberHardware:
         self._motor_x.position = pos[0]
         self._motor_y.position = pos[1]
         self.updater.set_motor_moving()
-        wait(self.timeout_ms, self.updater.moveFinished)  # config
+        wait(self.timeout_ms, self.updater.moveFinished)
 
     def get_hardware_status(self):
         pos = self._motor_x.position, self._motor_y.position, self._gripper.value
@@ -68,6 +70,34 @@ class PeakAbsorberHardware:
 
     def go_home(self):
         self.move_to([0, 0], "travel")
+
+    def home(self, precise=True):
+        # TODO: this function cannot be tested in simulation mode and therefore needs testing and adjusting on the hardware
+        self.move_to_limits("homing")
+        correction = np.array(self.get_hardware_status()[0][0:1])
+        self._motor_x.SetStepPosition(0)
+        self._motor_y.SetStepPosition(0)
+        self.move_to(self.limit_switch_max_hysterisis, "travel")
+        if self._motor_x.cwlimit or self._motor_y.cwlimit:
+            raise Exception("limit switches don't work as expected")  # error
+        if precise:
+            self.move_to_limits("homing_precise")
+            correction += np.array(self.get_hardware_status()[0][0:1])
+            self._motor_x.SetStepPosition(0)
+            self._motor_y.SetStepPosition(0)
+            self.move_to(self.limit_switch_max_hysterisis, "travel")
+            if self._motor_x.cwlimit or self._motor_y.cwlimit:
+                raise Exception("limit switches don't work as expected")  # error
+        self._motor_x.SetStepPosition(0)
+        self._motor_y.SetStepPosition(0)
+        return correction
+        # TODO: if the correction is too high warn the user that the beamstops need to be parked manually
+
+    def move_to_limits(self, slewrate):
+        self._motor_x.slewrate = self._slewrates[slewrate]
+        self._motor_y.slewrate = self._slewrates[slewrate]
+        self._motor_x.moveToCwLimit()
+        self._motor_y.moveToCwLimit()
 
 
 class MovementUpdater(QObject):

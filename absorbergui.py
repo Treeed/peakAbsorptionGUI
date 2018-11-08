@@ -32,12 +32,16 @@ class MainWindow(QtGui.QMainWindow):
         button_re_arrange = QtGui.QPushButton("rearrange")
         button_re_arrange.clicked.connect(self.beamstop_mover.rearrange_all_beamstops)
 
+        button_home = QtGui.QPushButton("experimental homing")
+        button_home.clicked.connect(self.absorber_hardware.home)
+
         test = QtGui.QPushButton("test")
         test.clicked.connect(self.image_view.add_teststops)
 
         self.widget.layout().addWidget(self.image_view.im_view, 0, 0, 3, 3)
         self.widget.layout().addWidget(button_new_target, 4, 0)
         self.widget.layout().addWidget(button_open_file, 4, 1)
+        self.widget.layout().addWidget(button_home, 4, 2)
         self.widget.layout().addWidget(button_reset_all_beamstops, 5, 0)
         self.widget.layout().addWidget(button_re_arrange, 6, 1)
         self.widget.layout().addWidget(test, 6, 2)
