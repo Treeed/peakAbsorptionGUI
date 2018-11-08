@@ -14,11 +14,13 @@ class MainWindow(QtGui.QMainWindow):
         self.widget = QtGui.QWidget()
         self.widget.setLayout(QtGui.QGridLayout())
 
-        self.beamstop_manager = absorberfunctions.BeamstopManager()
-        self.absorber_hardware = hardware.PeakAbsorberHardware()
-        self.image_view = ImageDrawer(self.absorber_hardware, self.beamstop_manager)
-        self.file_handler = fileio.FileHandler(self.image_view, self.widget)
-        self.beamstop_mover = absorberfunctions.BeamstopMover(self.image_view, self.absorber_hardware, self.beamstop_manager)
+        import config as config
+
+        self.beamstop_manager = absorberfunctions.BeamstopManager(config)
+        self.absorber_hardware = hardware.PeakAbsorberHardware(config)
+        self.image_view = ImageDrawer(config, self.absorber_hardware, self.beamstop_manager)
+        self.file_handler = fileio.FileHandler(config, self.image_view, self.widget)
+        self.beamstop_mover = absorberfunctions.BeamstopMover(config, self.image_view, self.absorber_hardware, self.beamstop_manager)
 
         button_new_target = QtGui.QPushButton("new handle")
         button_new_target.clicked.connect(self.image_view.add_handle)
@@ -50,7 +52,8 @@ class MainWindow(QtGui.QMainWindow):
 
 
 class ImageDrawer:
-    def __init__(self, absorber_hardware, beamstop_manager):
+    def __init__(self, config, absorber_hardware, beamstop_manager):
+        self.config = config
         self.absorber_hardware = absorber_hardware
         self.beamstop_manager = beamstop_manager
         self.im_view = pg.ImageView()
@@ -69,22 +72,22 @@ class ImageDrawer:
         self.init_crosshair()
 
     def draw_absorber_geometry(self):
-        self.box_in_machine_coords("limit_box", [0, 0], self.absorber_hardware.limits)
-        self.box_in_machine_coords("detector_box", self.absorber_hardware.detector_origin, self.absorber_hardware.active_area)
-        for parking_position in self.beamstop_manager.parking_positions:
-            self.circle_in_machine_coord("parking_spots", parking_position)
+        self.box_in_machine_coords("limit_box", [0, 0], self.config.PeakAbsorber.limits, self.config.Gui.color_absorber_geometry)
+        self.box_in_machine_coords("detector_box", self.config.Detector.detector_origin, self.config.Detector.active_area, self.config.Gui.color_absorber_geometry)
+        for parking_position in self.config.ParkingPositions.parking_positions:
+            self.circle_in_machine_coord("parking_spots", parking_position, color=self.config.Gui.color_absorber_geometry)
 
     def img_to_machine_coord(self, point):
-        return np.array(point)*self.absorber_hardware.pixel_size+self.absorber_hardware.detector_origin
+        return np.array(point)*self.config.Detector.pixel_size+self.config.Detector.detector_origin
 
     def machine_to_img_coord(self, point):
-        return (np.array(point)-self.absorber_hardware.detector_origin)/self.absorber_hardware.pixel_size
+        return (np.array(point)-self.config.Detector.detector_origin)/self.config.Detector.pixel_size
 
     def img_to_machine_scale(self, point):
-        return np.array(point) * self.absorber_hardware.pixel_size
+        return np.array(point) * self.config.Detector.pixel_size
 
     def machine_to_img_scale(self, point):
-        return np.array(point) / self.absorber_hardware.pixel_size
+        return np.array(point) / self.config.Detector.pixel_size
 
     def box_in_machine_coords(self, purpose, pos, size, color='w'):
         box = pyqtgraphutils.RectangleItem(self.machine_to_img_coord(pos), self.machine_to_img_scale(size), color)
@@ -92,7 +95,7 @@ class ImageDrawer:
 
     def circle_in_machine_coord(self, purpose, pos, radius=None, color='w'):
         if radius is None:
-            radius = self.absorber_hardware.beamstop_radius
+            radius = self.config.PeakAbsorber.beamstop_radius
         circle = pyqtgraphutils.CircleItem(self.machine_to_img_coord(pos), self.machine_to_img_scale(radius)[0], color)
         self.add_graphics_item(circle, purpose)
 
@@ -122,10 +125,10 @@ class ImageDrawer:
 
     # testing
     def add_teststops(self):
-        teststops = self.beamstop_manager.parking_positions
+        teststops = self.config.ParkingPositions.parking_positions
         self.beamstop_manager.add_beamstops(np.arange(len(teststops)))
         for beamstop in teststops:
-            self.circle_in_machine_coord("beamstop_circles", beamstop, color='r')
+            self.circle_in_machine_coord("beamstop_circles", beamstop, color=self.config.Gui.color_beamstops)
         # TODO: where to draw the circles? "add beamstops"?
 
     def get_handles_machine_coords(self):
@@ -145,6 +148,6 @@ class ImageDrawer:
         self.items["crosshair"][1].setValue(img_pos[1])
 
     def set_crosshair_color(self, gripper_pos):
-        color = pg.hsvColor(1/3-gripper_pos/3)
+        color = self.config.Gui.color_crosshair.map(gripper_pos)
         self.items["crosshair"][0].setPen(color)
         self.items["crosshair"][1].setPen(color)

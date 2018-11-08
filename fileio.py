@@ -3,7 +3,8 @@ import fabio
 
 
 class FileHandler:
-    def __init__(self, im_view, parent_widget):
+    def __init__(self, config, im_view, parent_widget):
+        self.config = config
         self.im_view = im_view
         self.parent_widget = parent_widget
 
