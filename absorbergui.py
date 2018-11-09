@@ -20,6 +20,13 @@ class MainWindow(QtGui.QMainWindow):
         self.widget = QtGui.QWidget()
         self.widget.setLayout(QtGui.QGridLayout())
 
+        self.button_new_target = QtGui.QPushButton("new handle")
+        self.button_open_file = QtGui.QPushButton("open image")
+        self.button_reset_all_beamstops = QtGui.QPushButton("reset all handles")
+        self.button_re_arrange = QtGui.QPushButton("rearrange")
+        self.button_home = QtGui.QPushButton("experimental homing")
+        self.test = QtGui.QPushButton("test")
+
         self.lg.debug("importing config")
         import config as config
 
@@ -30,33 +37,37 @@ class MainWindow(QtGui.QMainWindow):
         self.beamstop_mover = absorberfunctions.BeamstopMover(config, self.image_view, self.absorber_hardware, self.beamstop_manager)
 
         self.lg.debug("initializing and adding widgets")
-        button_new_target = QtGui.QPushButton("new handle")
-        button_new_target.clicked.connect(self.image_view.add_handle)
-
-        button_open_file = QtGui.QPushButton("open image")
-        button_open_file.clicked.connect(self.file_handler.open_file)
-
-        button_reset_all_beamstops = QtGui.QPushButton("reset all handles")
-        button_reset_all_beamstops.clicked.connect(self.image_view.reset_all_handles)
-
-        button_re_arrange = QtGui.QPushButton("rearrange")
-        button_re_arrange.clicked.connect(self.beamstop_mover.rearrange_all_beamstops)
-
-        button_home = QtGui.QPushButton("experimental homing")
-        button_home.clicked.connect(self.absorber_hardware.home)
-
-        test = QtGui.QPushButton("test")
-        test.clicked.connect(self.image_view.add_teststops)
+        self.button_new_target.clicked.connect(self.image_view.add_handle)
+        self.button_open_file.clicked.connect(self.file_handler.open_file)
+        self.button_reset_all_beamstops.clicked.connect(self.image_view.reset_all_handles)
+        self.button_re_arrange.clicked.connect(self.rearrange)
+        self.button_home.clicked.connect(self.home)
+        self.test.clicked.connect(self.image_view.add_teststops)
 
         self.widget.layout().addWidget(self.image_view.im_view, 0, 1, 10, 10)
-        self.widget.layout().addWidget(button_new_target, 0, 0)
-        self.widget.layout().addWidget(button_open_file, 1, 0)
-        self.widget.layout().addWidget(button_home, 2, 0)
-        self.widget.layout().addWidget(button_reset_all_beamstops, 3, 0)
-        self.widget.layout().addWidget(button_re_arrange, 4, 0)
-        self.widget.layout().addWidget(test, 5, 0)
+        self.widget.layout().addWidget(self.button_new_target, 0, 0)
+        self.widget.layout().addWidget(self.button_open_file, 1, 0)
+        self.widget.layout().addWidget(self.button_home, 2, 0)
+        self.widget.layout().addWidget(self.button_reset_all_beamstops, 3, 0)
+        self.widget.layout().addWidget(self.button_re_arrange, 4, 0)
+        self.widget.layout().addWidget(self.test, 5, 0)
         self.setCentralWidget(self.widget)
         self.show()
+
+    def rearrange(self):
+        self.set_enable_all_hardware_buttons(False)
+        self.beamstop_mover.rearrange_all_beamstops()
+        self.set_enable_all_hardware_buttons(True)
+
+    def home(self):
+        self.set_enable_all_hardware_buttons(False)
+        self.absorber_hardware.home()
+        self.set_enable_all_hardware_buttons(True)
+
+    def set_enable_all_hardware_buttons(self, enabled):
+        self.button_re_arrange.setEnabled(enabled)
+        self.button_home.setEnabled(enabled)
+
 
 
 class ImageDrawer:
