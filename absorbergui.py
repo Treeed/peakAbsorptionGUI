@@ -2,6 +2,7 @@ from PyQt5 import QtGui
 import pyqtgraph as pg
 import pyqtgraphutils
 import numpy as np
+import logging
 
 import absorberfunctions
 import fileio
@@ -11,9 +12,15 @@ import hardware
 class MainWindow(QtGui.QMainWindow):
     def __init__(self):
         super().__init__()
+
+        fileio.init_logger()
+        self.lg = logging.getLogger("main.gui")
+
+        self.lg.debug("initializing gui")
         self.widget = QtGui.QWidget()
         self.widget.setLayout(QtGui.QGridLayout())
 
+        self.lg.debug("importing config")
         import config as config
 
         self.beamstop_manager = absorberfunctions.BeamstopManager(config)
@@ -22,6 +29,7 @@ class MainWindow(QtGui.QMainWindow):
         self.file_handler = fileio.FileHandler(config, self.image_view, self.widget)
         self.beamstop_mover = absorberfunctions.BeamstopMover(config, self.image_view, self.absorber_hardware, self.beamstop_manager)
 
+        self.lg.debug("initializing and adding widgets")
         button_new_target = QtGui.QPushButton("new handle")
         button_new_target.clicked.connect(self.image_view.add_handle)
 
@@ -53,6 +61,8 @@ class MainWindow(QtGui.QMainWindow):
 
 class ImageDrawer:
     def __init__(self, config, absorber_hardware, beamstop_manager):
+        self.lg = logging.getLogger("main.gui.imagedrawer")
+        self.lg.debug("initializing image drawer")
         self.config = config
         self.absorber_hardware = absorber_hardware
         self.beamstop_manager = beamstop_manager
@@ -68,6 +78,7 @@ class ImageDrawer:
             "crosshair": []
         }
 
+        self.lg.debug("adding absorber geometry and crosshair")
         self.draw_absorber_geometry()
         self.init_crosshair()
 
@@ -107,6 +118,7 @@ class ImageDrawer:
         self.items[purpose].append(item)
 
     def add_handle(self):
+        self.lg.debug("adding handle")
         handle = pg.CircleROI([100, 100], [50, 50], pen=(9, 15), removable=True)
         handle.sigRemoveRequested.connect(self.remove_handle)
         self.add_graphics_item(handle, "handles")
@@ -115,11 +127,13 @@ class ImageDrawer:
             self.im_view.setImage(array)
 
     def reset_all_handles(self):
+        self.lg.info("resetting all handles")
         for handle in self.items["handles"]:
             self.im_view.removeItem(handle)
         self.items["handles"].clear()
 
     def remove_handle(self, handle):
+        self.lg.debug("removing handle")
         self.im_view.removeItem(handle)
         self.items["handles"].remove(handle)
 

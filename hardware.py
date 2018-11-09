@@ -1,6 +1,7 @@
 import tango
 import absorberfunctions
 import numpy as np
+import logging
 from PyQt5.QtCore import QEventLoop, QTimer, pyqtSignal, QObject
 
 
@@ -13,8 +14,10 @@ class PeakAbsorberHardware:
         self._motor_y = tango.DeviceProxy(self.config.PeakAbsorber.tango_server + self.config.PeakAbsorber.motor_y_path)
 
         self.updater = MovementUpdater(config, self)
+        self.lg = logging.getLogger("main.hardware.hardware")
 
     def move_beamstop(self, move):
+        self.lg.info("moving beamstop %d to %s", move.beamstop_nr, str(move.get_target_pos()))
         self.move_to(move.get_beamstop_pos(), "travel")
         self.move_gripper(1)
         self.updater.set_current_move(move)
@@ -25,11 +28,13 @@ class PeakAbsorberHardware:
         move.finish_move()
 
     def move_gripper(self, pos):
+        self.lg.debug("moving gripper to %s", str(pos))
         self._gripper.value = pos
         self.updater.set_gripper_moving()
         wait(self.config.PeakAbsorber.timeout_ms, self.updater.gripperFinished)
 
     def move_to(self, pos, slewrate="beamstop"):
+        self.lg.debug("moving to %s with %s speed", str(pos), slewrate)
         # TODO: handle errors
         distance = [self._motor_x.position - pos[0], self._motor_y.position - pos[1]]
         travel_distance = absorberfunctions.calc_vec_len([distance[0], distance[1]])
@@ -50,16 +55,18 @@ class PeakAbsorberHardware:
 
     def go_home(self):
         self.move_to([0, 0], "travel")
+        self.lg.info("went home")
 
     def home(self, precise=True):
         # TODO: this function cannot be tested in simulation mode and therefore needs testing and adjusting on the hardware
+        self.lg.info("homing translations")
         self.move_to_limits("homing")
         correction = np.array(self.get_hardware_status()[0][0:1])
         self._motor_x.SetStepPosition(0)
         self._motor_y.SetStepPosition(0)
         self.move_to(self.config.PeakAbsorber.limit_switch_max_hysterisis, "travel")
         if self._motor_x.cwlimit or self._motor_y.cwlimit:
-            raise Exception("limit switches don't work as expected")  # error
+            self.lg.critical("homing switches didn't disengage after moving %s out!", str(self.config.PeakAbsorber.limit_switch_max_hysterisis))
         if precise:
             self.move_to_limits("homing_precise")
             correction += np.array(self.get_hardware_status()[0][0:1])
@@ -67,13 +74,15 @@ class PeakAbsorberHardware:
             self._motor_y.SetStepPosition(0)
             self.move_to(self.config.PeakAbsorber.limit_switch_max_hysterisis, "travel")
             if self._motor_x.cwlimit or self._motor_y.cwlimit:
-                raise Exception("limit switches don't work as expected")  # error
+                self.lg.critical("homing switches didn't disengage after moving %s out!", str(self.config.PeakAbsorber.limit_switch_max_hysterisis))
         self._motor_x.SetStepPosition(0)
         self._motor_y.SetStepPosition(0)
+        self.lg.info("homing corrected position by %s mm", str(correction))
         return correction
-        # TODO: if the correction is too high warn the user that the beamstops need to be parked manually
+        # TODO: if the correction is too high warn the user that the beamstops need to be reparked manually
 
     def move_to_limits(self, slewrate):
+        self.lg.debug("moving to cw limits")
         self._motor_x.slewrate = self.config.PeakAbsorber.slewrates[slewrate]
         self._motor_y.slewrate = self.config.PeakAbsorber.slewrates[slewrate]
         self._motor_x.moveToCwLimit()
@@ -90,6 +99,7 @@ class MovementUpdater(QObject):
         super().__init__()
         self.config = config
         self.absorber_hardware = absorber_hardware
+        self.lg = logging.getLogger("main.hardware.movementupdater")
 
         self.motor_moving = False
         self.gripper_moving = False
@@ -137,6 +147,7 @@ class MovementUpdater(QObject):
         self.timer.setInterval(self.config.PeakAbsorber.moving_polling_rate)
 
     def estimate_gripper_pos(self):
+        self.lg.debug("gripper changed state")
         self.estimated_real_gripper_pos = float(not self.last_gripper_pos)
         self.gripper_timer.start(1000/self.config.PeakAbsorber.moving_polling_rate)
 

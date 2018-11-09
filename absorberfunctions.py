@@ -2,6 +2,7 @@ import numpy as np
 import scipy.optimize
 
 import pyqtgraphutils
+import logging
 
 
 class BeamstopMover:
@@ -11,15 +12,17 @@ class BeamstopMover:
         self.absorber_hardware = absorber_hardware
         self.beamstop_manager = beamstop_manager
 
+        self.lg = logging.getLogger("main.absorberfunctions.beamstopmover")
+
     def rearrange_all_beamstops(self):
+        self.lg.info("calulating beamstop assignment")
         if len(self.im_view.items["handles"]) > len(self.beamstop_manager.beamstops):
-            print("not enough beamstops available")  # error
+            self.lg.error("not enough beamstops available")
             return
 
         handle_positions = self.im_view.get_handles_machine_coords()
-        # TODO: get machine coordinates
-        # TODO: check behaviour without elements
         if handle_positions.size > 0:
+            self.lg.debug("handles available, calculating assignment to beamstops")
 
             target_combinations, target_distances = calc_beamstop_assignment(self.beamstop_manager.beamstops, handle_positions, self.config.PeakAbsorber.beamstop_inactive_cost * self.beamstop_manager.beamstop_parked.astype(np.bool_))
 
@@ -27,14 +30,16 @@ class BeamstopMover:
 
             reststops = np.delete(np.arange(self.beamstop_manager.beamstops.shape[0]), target_combinations[0])[np.delete(np.logical_not(self.beamstop_manager.beamstop_parked), target_combinations[0])]
         else:
+            self.lg.debug("no handles available")
             reststops = np.arange(len(self.beamstop_manager.beamstops))[np.logical_not(self.beamstop_manager.beamstop_parked)]
             required_moves = []
 
         if reststops.size > 0:
+            self.lg.debug("unused beamstops available calculating cleanup")
             free_parking_position_nrs = np.logical_not(self.beamstop_manager.parking_position_occupied).nonzero()[0]
 
             if reststops.size > free_parking_position_nrs.size:
-                print("not enough parking space available")  # error
+                self.lg.error("not enough parking space available: %d reststops but only %d parking spots", reststops.size, free_parking_position_nrs.size)
                 return
 
             rest_combinations, _ = calc_beamstop_assignment(self.beamstop_manager.beamstops[reststops], self.config.ParkingPositions.parking_positions[free_parking_position_nrs])
@@ -44,6 +49,7 @@ class BeamstopMover:
 
     def move_beamstops(self, required_moves):
         # TODO: find best path
+        self.lg.debug("working through list of moves")
         for move in required_moves:
             self.absorber_hardware.move_beamstop(move)
         self.absorber_hardware.go_home()
@@ -55,24 +61,30 @@ class BeamstopManager:
         self.beamstops = np.empty((0, 2))
         self.beamstop_parked = np.empty(0, dtype=np.int)
         self.parking_position_occupied = np.zeros(len(self.config.ParkingPositions.parking_positions), dtype=np.int)
+        self.lg = logging.getLogger("main.absorberfunctions.beamstopmanager")
 
     def add_beamstops(self, parking_nrs):
+        self.lg.info("adding %d beamstops", len(parking_nrs))
         if self.parking_position_occupied[parking_nrs].any():
-            raise ValueError("cannot put beamstop on occupied parking position")
+            self.lg.error("cannot put beamstop on occupied parking position")
+            return
         self.parking_position_occupied[parking_nrs] = np.arange(self.beamstops.size, self.beamstops.size+len(parking_nrs))+1
         self.beamstop_parked = np.concatenate([self.beamstop_parked, parking_nrs+1])
         self.beamstops = np.concatenate([self.beamstops, self.config.ParkingPositions.parking_positions[parking_nrs]])
 
     def occupy_parking_position(self, parking_nr, beamstop_nr):
+        self.lg.debug("occupying parking pos %d with beamstop %d", parking_nr, beamstop_nr)
         if self.parking_position_occupied[parking_nr]:
-            raise ValueError("cannot put beamstop on occupied parking position")
+            self.lg.error("cannot put beamstop on occupied parking position")
         self.parking_position_occupied[parking_nr] = beamstop_nr+1
         self.beamstop_parked[beamstop_nr] = parking_nr+1
 
     def free_parking_position(self, beamstop_nr):
         if not self.beamstop_parked[beamstop_nr]:
+            self.lg.debug("beamstop %d is not parked", beamstop_nr)
             return
         parking_nr = self.beamstop_parked[beamstop_nr]-1
+        self.lg.debug("freeing parking position %d from beamstop %d", parking_nr, beamstop_nr)
         self.beamstop_parked[beamstop_nr] = 0
         self.parking_position_occupied[parking_nr] = 0
 
