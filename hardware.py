@@ -87,6 +87,8 @@ class PeakAbsorberHardware:
         self._motor_y.slewrate = self.config.PeakAbsorber.slewrates[slewrate]
         self._motor_x.moveToCwLimit()
         self._motor_y.moveToCwLimit()
+        self.updater.set_motor_moving()
+        wait(self.config.PeakAbsorber.timeout_ms, self.updater.moveFinished)
 
 
 class MovementUpdater(QObject):
