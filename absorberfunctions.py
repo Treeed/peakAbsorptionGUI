@@ -101,10 +101,12 @@ class BeamstopManager:
         self.lg.info("adding %d beamstops", len(parking_nrs))
         if self.parking_position_occupied[parking_nrs].any():
             self.lg.error("cannot put beamstop on occupied parking position")
-            return
+            return None
         self.parking_position_occupied[parking_nrs] = np.arange(self.beamstops.size, self.beamstops.size+len(parking_nrs))+1
         self.beamstop_parked = np.concatenate([self.beamstop_parked, parking_nrs+1])
-        self.beamstops = np.concatenate([self.beamstops, self.config.ParkingPositions.parking_positions[parking_nrs]])
+        positions = self.config.ParkingPositions.parking_positions[parking_nrs]
+        self.beamstops = np.concatenate([self.beamstops, positions])
+        return positions
 
     def occupy_parking_position(self, parking_nr, beamstop_nr):
         self.lg.debug("occupying parking pos %d with beamstop %d", parking_nr, beamstop_nr)

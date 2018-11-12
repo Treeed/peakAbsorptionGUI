@@ -25,7 +25,7 @@ class MainWindow(QtGui.QMainWindow):
         self.button_reset_all_beamstops = QtGui.QPushButton("reset all handles")
         self.button_re_arrange = QtGui.QPushButton("rearrange")
         self.button_home = QtGui.QPushButton("experimental homing")
-        self.test = QtGui.QPushButton("test")
+        self.add_beamstops = QtGui.QPushButton("add beamstops")
 
         self.lg.debug("importing config")
         import config as config
@@ -33,16 +33,16 @@ class MainWindow(QtGui.QMainWindow):
         self.beamstop_manager = absorberfunctions.BeamstopManager(config)
         self.absorber_hardware = hardware.PeakAbsorberHardware(config)
         self.image_view = ImageDrawer(config, self.absorber_hardware, self.beamstop_manager)
-        self.file_handler = fileio.FileHandler(config, self.image_view, self.widget)
+        self.file_handler = fileio.FileHandler(config, self.image_view, self.widget, self.beamstop_manager)
         self.beamstop_mover = absorberfunctions.BeamstopMover(config, self.image_view, self.absorber_hardware, self.beamstop_manager)
 
         self.lg.debug("initializing and adding widgets")
         self.button_new_target.clicked.connect(self.image_view.add_handle)
-        self.button_open_file.clicked.connect(self.file_handler.open_file)
+        self.button_open_file.clicked.connect(self.file_handler.open_image)
         self.button_reset_all_beamstops.clicked.connect(self.image_view.reset_all_handles)
         self.button_re_arrange.clicked.connect(self.rearrange)
         self.button_home.clicked.connect(self.home)
-        self.test.clicked.connect(self.image_view.add_teststops)
+        self.add_beamstops.clicked.connect(self.file_handler.open_beamstop_list)
 
         self.widget.layout().addWidget(self.image_view.im_view, 0, 1, 10, 10)
         self.widget.layout().addWidget(self.button_new_target, 0, 0)
@@ -50,7 +50,7 @@ class MainWindow(QtGui.QMainWindow):
         self.widget.layout().addWidget(self.button_home, 2, 0)
         self.widget.layout().addWidget(self.button_reset_all_beamstops, 3, 0)
         self.widget.layout().addWidget(self.button_re_arrange, 4, 0)
-        self.widget.layout().addWidget(self.test, 5, 0)
+        self.widget.layout().addWidget(self.add_beamstops, 5, 0)
         self.setCentralWidget(self.widget)
         self.show()
 
@@ -147,13 +147,10 @@ class ImageDrawer:
         self.im_view.removeItem(handle)
         self.items["handles"].remove(handle)
 
-    # testing
-    def add_teststops(self):
-        teststops = self.config.ParkingPositions.parking_positions
-        self.beamstop_manager.add_beamstops(np.arange(len(teststops)))
-        for beamstop in teststops:
-            self.circle_in_machine_coord("beamstop_circles", beamstop, color=self.config.Gui.color_beamstops)
-        # TODO: where to draw the circles? "add beamstops"?
+    def add_beamstop_circles(self, positions):
+        if positions is not None:
+            for beamstop in positions:
+                self.circle_in_machine_coord("beamstop_circles", beamstop, color=self.config.Gui.color_beamstops)
 
     def get_handles_machine_coords(self):
         return np.array([self.img_to_machine_coord(np.array(handle.pos())+np.array(handle.size())/2) for handle in self.items["handles"]])
