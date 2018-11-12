@@ -1,3 +1,5 @@
+import collisiondetection
+
 import numpy as np
 import scipy.optimize
 
@@ -73,13 +75,11 @@ class BeamstopMover:
         and adds the calculated intermediate stops to the moves that would collide with a beamstop otherwise.
         """
         simulation_beamstops = self.beamstop_manager.beamstops.copy()
+        collision_detector = collisiondetection.CollisionDetection()
         for move in moves:
-            move.set_stopovers(self.find_path(move.get_target_pos(), move.get_beamstop_pos(), simulation_beamstops, self.config.PeakAbsorber.gripper_radius + self.config.PeakAbsorber.beamstop_radius))
+            move.set_stopovers(collision_detector.find_path(move.get_target_pos(), move.get_beamstop_pos(), simulation_beamstops, self.config.PeakAbsorber.gripper_radius + self.config.PeakAbsorber.beamstop_radius))
             move.add_lines()
             simulation_beamstops[move.beamstop_nr] = move.get_target_pos()
-
-    def find_path(self, target, pos, beamstops, dist):
-        return [[1345, 45]]
 
     def move_beamstops(self, required_moves):
         # TODO: find best path
