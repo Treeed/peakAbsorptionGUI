@@ -45,6 +45,7 @@ class BeamstopMover:
             rest_combinations, _ = self.calc_beamstop_assignment(self.beamstop_manager.beamstops[reststops], self.config.ParkingPositions.parking_positions[free_parking_position_nrs])
             required_moves.extend(BeamstopMoveParking(self.beamstop_manager, self.im_view, reststops[combination[0]], free_parking_position_nrs[combination[1]]) for combination in np.swapaxes(rest_combinations, 0, 1))
 
+        self.calc_expected_collisions(required_moves)
         self.move_beamstops(required_moves)
 
     # returns combinations of [beamstops, target_positions] and the distances between the two
@@ -63,6 +64,22 @@ class BeamstopMover:
             penalised_distances = distances
         combinations = np.array(scipy.optimize.linear_sum_assignment(penalised_distances))
         return combinations, distances[tuple(combinations)]
+
+    def calc_expected_collisions(self, moves):
+        """
+        Modifies the moves in the list to include paths which avoid collisions if necessary
+
+        Simulates the expected constellation of beamstops after every move, then runs collision detection
+        and adds the calculated intermediate stops to the moves that would collide with a beamstop otherwise.
+        """
+        simulation_beamstops = self.beamstop_manager.beamstops.copy()
+        for move in moves:
+            move.set_stopovers(self.find_path(move.get_target_pos(), move.get_beamstop_pos(), simulation_beamstops, self.config.PeakAbsorber.gripper_radius + self.config.PeakAbsorber.beamstop_radius))
+            move.add_lines()
+            simulation_beamstops[move.beamstop_nr] = move.get_target_pos()
+
+    def find_path(self, target, pos, beamstops, dist):
+        return [[1345, 45]]
 
     def move_beamstops(self, required_moves):
         # TODO: find best path
@@ -107,22 +124,34 @@ class BeamstopManager:
 
 
 class BeamstopMoveTarget:
-    def __init__(self, beamstop_manager, im_view, beamstop_nr, targetpos):
+    def __init__(self, beamstop_manager, im_view, beamstop_nr, target_pos):
         self.beamstop_nr = beamstop_nr
-        self.target_pos = targetpos
+        self.target_pos = target_pos
         self.beamstop_manager = beamstop_manager
         self.im_view = im_view
 
-        self.trajectory_line = None
-        self.add_line()
+        self.stopovers = np.empty([0, 2])
+        self.trajectory_lines = None
 
-    def add_line(self):
+    def add_lines(self):
         # this should be done via a function in ImageDrawer but I haven't figured out how to manage the lines yet
-        self.trajectory_line = pyqtgraphutils.LineSegmentItem(self.im_view.machine_to_img_coord(self.target_pos), self.im_view.machine_to_img_coord(self.get_beamstop_pos()))
-        self.im_view.im_view.addItem(self.trajectory_line)
+        complete_path = np.concatenate([[self.get_beamstop_pos()], self.get_path()], axis=0)
+        self.trajectory_lines = [pyqtgraphutils.LineSegmentItem(self.im_view.machine_to_img_coord(complete_path[segment]), self.im_view.machine_to_img_coord(complete_path[segment + 1])) for segment in range(len(complete_path) - 1)]
+        for line in self.trajectory_lines:
+            self.im_view.im_view.addItem(line)
 
-    def remove_line(self):
-        self.im_view.im_view.removeItem(self.trajectory_line)
+    def remove_lines(self):
+        for line in self.trajectory_lines:
+            self.im_view.im_view.removeItem(line)
+
+    def set_stopovers(self, stopovers):
+        if len(stopovers):
+            self.stopovers = stopovers
+        else:
+            self.stopovers = np.empty([0, 2])
+
+    def get_path(self):
+        return np.concatenate([self.stopovers, [self.target_pos]], axis=0)
 
     def get_target_pos(self):
         return self.target_pos
@@ -133,14 +162,13 @@ class BeamstopMoveTarget:
     def finish_move(self):
         self.beamstop_manager.beamstops[self.beamstop_nr] = self.get_target_pos()
         self.manage_parking()
-        self.remove_line()
+        self.remove_lines()
 
     def manage_parking(self):
         self.beamstop_manager.free_parking_position(self.beamstop_nr)
 
     def update_pos(self, pos):
         self.im_view.move_circle_in_machine_coord("beamstop_circles", self.beamstop_nr, pos)
-        self.trajectory_line.pos()
 
 
 class BeamstopMoveParking(BeamstopMoveTarget):

@@ -29,6 +29,8 @@ class PeakAbsorber:
     beamstop_radius = 1.5
     # time it takes the gripper to fully extend or retract after the corresponding bit as been set on the tango server
     gripper_time_ms = 2000
+    # distance of the outermost part to the center of the gripper for collision detection when the gripper is down
+    gripper_radius = 10
     # time after which a single move is aborted and considered failed
     timeout_ms = 100000
     # distance in mm we need to move out of the limit switch to make sure it definitely turns off

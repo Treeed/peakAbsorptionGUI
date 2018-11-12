@@ -21,7 +21,8 @@ class PeakAbsorberHardware:
         self.move_to(move.get_beamstop_pos(), "travel")
         self.move_gripper(1)
         self.updater.set_current_move(move)
-        self.move_to(move.get_target_pos(), "beamstop")
+        for pos in move.get_path():
+            self.move_to(pos, "beamstop")
         self.updater.set_current_move(None)
         self.move_gripper(0)
 
