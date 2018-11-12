@@ -115,8 +115,11 @@ class BeamstopMoveTarget:
 
     def finish_move(self):
         self.beamstop_manager.beamstops[self.beamstop_nr] = self.get_target_pos()
-        self.beamstop_manager.free_parking_position(self.beamstop_nr)
+        self.manage_parking()
         self.remove_line()
+
+    def manage_parking(self):
+        self.beamstop_manager.free_parking_position(self.beamstop_nr)
 
     def update_pos(self, pos):
         self.im_view.move_circle_in_machine_coord("beamstop_circles", self.beamstop_nr, pos)
@@ -125,18 +128,13 @@ class BeamstopMoveTarget:
 
 class BeamstopMoveParking(BeamstopMoveTarget):
     def __init__(self, beamstop_manager, im_view, beamstop_nr, parking_nr):
-        self.beamstop_manager = beamstop_manager
-        self.beamstop_nr = beamstop_nr
+        self.target_pos = beamstop_manager.config.ParkingPositions.parking_positions[parking_nr]
         self.parking_nr = parking_nr
-        self.target_pos = self.beamstop_manager.config.ParkingPositions.parking_positions[parking_nr]
-        self.im_view = im_view
 
-        self.add_line()
+        super(BeamstopMoveParking, self).__init__(beamstop_manager, im_view, beamstop_nr, self.target_pos)
 
-    def finish_move(self):
-        self.beamstop_manager.beamstops[self.beamstop_nr] = self.get_target_pos()
+    def manage_parking(self):
         self.beamstop_manager.occupy_parking_position(self.parking_nr, self.beamstop_nr)
-        self.remove_line()
 
 
 # returns combinations of [beamstops, target_positions] and the distances between the two
