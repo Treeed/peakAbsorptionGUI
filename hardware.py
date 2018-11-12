@@ -147,15 +147,15 @@ class MovementUpdater(QObject):
     def set_idle(self):
         self.motor_moving = False
         self.gripper_moving = False
-        self.timer.setInterval(self.config.PeakAbsorber.idle_polling_rate)
+        self.timer.setInterval(1000/self.config.PeakAbsorber.idle_polling_rate)
 
     def set_motor_moving(self):
         self.motor_moving = True
-        self.timer.setInterval(self.config.PeakAbsorber.moving_polling_rate)
+        self.timer.setInterval(1000/self.config.PeakAbsorber.moving_polling_rate)
 
     def set_gripper_moving(self):
         self.gripper_moving = True
-        self.timer.setInterval(self.config.PeakAbsorber.moving_polling_rate)
+        self.timer.setInterval(1000/self.config.PeakAbsorber.moving_polling_rate)
 
     def estimate_gripper_pos(self):
         self.lg.debug("gripper changed state")
