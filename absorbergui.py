@@ -69,7 +69,6 @@ class MainWindow(QtGui.QMainWindow):
         self.button_home.setEnabled(enabled)
 
 
-
 class ImageDrawer:
     def __init__(self, config, absorber_hardware, beamstop_manager):
         self.lg = logging.getLogger("main.gui.imagedrawer")

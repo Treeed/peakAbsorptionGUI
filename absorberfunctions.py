@@ -24,7 +24,7 @@ class BeamstopMover:
         if handle_positions.size > 0:
             self.lg.debug("handles available, calculating assignment to beamstops")
 
-            target_combinations, target_distances = calc_beamstop_assignment(self.beamstop_manager.beamstops, handle_positions, self.config.PeakAbsorber.beamstop_inactive_cost * self.beamstop_manager.beamstop_parked.astype(np.bool_))
+            target_combinations, target_distances = self.calc_beamstop_assignment(self.beamstop_manager.beamstops, handle_positions, self.config.PeakAbsorber.beamstop_inactive_cost * self.beamstop_manager.beamstop_parked.astype(np.bool_))
 
             required_moves = [BeamstopMoveTarget(self.beamstop_manager, self.im_view, combination[0], handle_positions[combination[1]]) for combination in np.swapaxes(target_combinations, 0, 1)[target_distances > self.config.PeakAbsorber.epsilon]]
 
@@ -42,10 +42,27 @@ class BeamstopMover:
                 self.lg.error("not enough parking space available: %d reststops but only %d parking spots", reststops.size, free_parking_position_nrs.size)
                 return
 
-            rest_combinations, _ = calc_beamstop_assignment(self.beamstop_manager.beamstops[reststops], self.config.ParkingPositions.parking_positions[free_parking_position_nrs])
+            rest_combinations, _ = self.calc_beamstop_assignment(self.beamstop_manager.beamstops[reststops], self.config.ParkingPositions.parking_positions[free_parking_position_nrs])
             required_moves.extend(BeamstopMoveParking(self.beamstop_manager, self.im_view, reststops[combination[0]], free_parking_position_nrs[combination[1]]) for combination in np.swapaxes(rest_combinations, 0, 1))
 
         self.move_beamstops(required_moves)
+
+    # returns combinations of [beamstops, target_positions] and the distances between the two
+    @staticmethod
+    def calc_beamstop_assignment(beamstops, target_positions, penalties=None):
+        if not beamstops.size:
+            return np.array([]), np.array([])
+        if not target_positions.size:
+            return np.array([]), np.array([])
+
+        # calculate distances from all beamstop targets to all beamstops and add penalties for suboptimal beamstops. Penalty list must have length of beamstop list
+        distances = calc_vec_len(target_positions - beamstops[:, np.newaxis])
+        if penalties is not None:
+            penalised_distances = distances + penalties[:, np.newaxis]
+        else:
+            penalised_distances = distances
+        combinations = np.array(scipy.optimize.linear_sum_assignment(penalised_distances))
+        return combinations, distances[tuple(combinations)]
 
     def move_beamstops(self, required_moves):
         # TODO: find best path
@@ -135,23 +152,6 @@ class BeamstopMoveParking(BeamstopMoveTarget):
 
     def manage_parking(self):
         self.beamstop_manager.occupy_parking_position(self.parking_nr, self.beamstop_nr)
-
-
-# returns combinations of [beamstops, target_positions] and the distances between the two
-def calc_beamstop_assignment(beamstops, target_positions, penalties=None):
-    if not beamstops.size:
-        return np.array([]), np.array([])
-    if not target_positions.size:
-        return np.array([]), np.array([])
-
-    # calculate distances from all beamstop targets to all beamstops and add penalties for suboptimal beamstops. Penalty list must have length of beamstop list
-    distances = calc_vec_len(target_positions - beamstops[:, np.newaxis])
-    if penalties is not None:
-        penalised_distances = distances + penalties[:, np.newaxis]
-    else:
-        penalised_distances = distances
-    combinations = np.array(scipy.optimize.linear_sum_assignment(penalised_distances))
-    return combinations, distances[tuple(combinations)]
 
 
 # get the length of a vector or list of vectors

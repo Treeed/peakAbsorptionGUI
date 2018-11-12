@@ -31,7 +31,7 @@ class PeakAbsorberHardware:
         self.lg.debug("moving gripper to %s", str(pos))
         self._gripper.value = pos
         self.updater.set_gripper_moving()
-        wait(self.config.PeakAbsorber.timeout_ms, self.updater.gripperFinished)
+        self.wait(self.config.PeakAbsorber.timeout_ms, self.updater.gripperFinished)
 
     def move_to(self, pos, slewrate="beamstop"):
         self.lg.debug("moving to %s with %s speed", str(pos), slewrate)
@@ -46,7 +46,7 @@ class PeakAbsorberHardware:
         self._motor_x.position = pos[0]
         self._motor_y.position = pos[1]
         self.updater.set_motor_moving()
-        wait(self.config.PeakAbsorber.timeout_ms, self.updater.moveFinished)
+        self.wait(self.config.PeakAbsorber.timeout_ms, self.updater.moveFinished)
 
     def get_hardware_status(self):
         pos = self._motor_x.position, self._motor_y.position, self._gripper.value
@@ -88,7 +88,15 @@ class PeakAbsorberHardware:
         self._motor_x.moveToCwLimit()
         self._motor_y.moveToCwLimit()
         self.updater.set_motor_moving()
-        wait(self.config.PeakAbsorber.timeout_ms, self.updater.moveFinished)
+        self.wait(self.config.PeakAbsorber.timeout_ms, self.updater.moveFinished)
+
+    @staticmethod
+    def wait(timeout, signal=None):
+        loop = QEventLoop()
+        QTimer.singleShot(timeout, loop.quit)
+        if signal is not None:
+            signal.connect(loop.quit)
+        loop.exec()
 
 
 class MovementUpdater(QObject):
@@ -166,15 +174,3 @@ class MovementUpdater(QObject):
             self.gripperFinished.emit()
 
         self.gripperChanged.emit(self.estimated_real_gripper_pos)
-
-
-def wait(timeout, signal=None):
-    loop = QEventLoop()
-    QTimer.singleShot(timeout, loop.quit)
-    if signal is not None:
-        signal.connect(loop.quit)
-    loop.exec()
-
-
-def check_in_box(pos, box_origin, box_size):
-    return box_origin[0] < pos[0] < box_origin[0] + box_size[0] and box_origin[1] < pos[1] < box_origin[1] + box_size[1]
