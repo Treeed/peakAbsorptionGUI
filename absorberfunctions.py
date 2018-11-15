@@ -19,7 +19,7 @@ class BeamstopMover:
     def rearrange_all_beamstops(self):
         self.lg.info("calulating beamstop assignment")
         if len(self.im_view.items["handles"]) > len(self.beamstop_manager.beamstops):
-            self.lg.error("not enough beamstops available")
+            self.lg.warning("not enough beamstops available")
             return
 
         handle_positions = self.im_view.get_handles_machine_coords()
@@ -41,7 +41,7 @@ class BeamstopMover:
             free_parking_position_nrs = np.logical_not(self.beamstop_manager.parking_position_occupied).nonzero()[0]
 
             if reststops.size > free_parking_position_nrs.size:
-                self.lg.error("not enough parking space available: %d reststops but only %d parking spots", reststops.size, free_parking_position_nrs.size)
+                self.lg.warning("not enough parking space available: %d reststops but only %d parking spots", reststops.size, free_parking_position_nrs.size)
                 return
 
             rest_combinations, _ = self.calc_beamstop_assignment(self.beamstop_manager.beamstops[reststops], self.config.ParkingPositions.parking_positions[free_parking_position_nrs])
@@ -100,7 +100,7 @@ class BeamstopManager:
     def add_beamstops(self, parking_nrs):
         self.lg.info("adding %d beamstops", len(parking_nrs))
         if self.parking_position_occupied[parking_nrs].any():
-            self.lg.error("cannot put beamstop on occupied parking position")
+            self.lg.warning("cannot put beamstop on occupied parking position")
             return None
         self.parking_position_occupied[parking_nrs] = np.arange(self.beamstops.size, self.beamstops.size+len(parking_nrs))+1
         self.beamstop_parked = np.concatenate([self.beamstop_parked, parking_nrs+1])
@@ -111,7 +111,7 @@ class BeamstopManager:
     def occupy_parking_position(self, parking_nr, beamstop_nr):
         self.lg.debug("occupying parking pos %d with beamstop %d", parking_nr, beamstop_nr)
         if self.parking_position_occupied[parking_nr]:
-            self.lg.error("cannot put beamstop on occupied parking position")
+            self.lg.warning("cannot put beamstop on occupied parking position")
         self.parking_position_occupied[parking_nr] = beamstop_nr+1
         self.beamstop_parked[beamstop_nr] = parking_nr+1
 
