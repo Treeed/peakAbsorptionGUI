@@ -1,4 +1,4 @@
-from PyQt5 import QtGui
+from PyQt5 import QtGui, QtWidgets, QtCore
 import pyqtgraph as pg
 import pyqtgraphutils
 import numpy as np
@@ -7,18 +7,27 @@ import logging
 import absorberfunctions
 import fileio
 import hardware
+import logger
 
 
 class MainWindow(QtGui.QMainWindow):
     def __init__(self):
         super().__init__()
 
-        fileio.init_logger()
+        self.resize(QtWidgets.QDesktopWidget().availableGeometry(self).size() * 0.7)
+
+        self.status_monitor = logger.init_logger()
         self.lg = logging.getLogger("main.gui")
 
         self.lg.debug("initializing gui")
-        self.widget = QtGui.QWidget()
-        self.widget.setLayout(QtGui.QGridLayout())
+        self.logsplitter = QtWidgets.QSplitter()
+        self.logsplitter.setOrientation(QtCore.Qt.Vertical)
+        self.buttonsplitter = QtWidgets.QSplitter()
+        self.buttons = QtWidgets.QWidget()
+        self.buttons.setLayout(QtWidgets.QVBoxLayout())
+
+        self.logsplitter.addWidget(self.buttonsplitter)
+        self.buttonsplitter.addWidget(self.buttons)
 
         self.button_new_target = QtGui.QPushButton("new handle")
         self.button_open_file = QtGui.QPushButton("open image")
@@ -33,7 +42,7 @@ class MainWindow(QtGui.QMainWindow):
         self.beamstop_manager = absorberfunctions.BeamstopManager(config)
         self.absorber_hardware = hardware.PeakAbsorberHardware(config)
         self.image_view = ImageDrawer(config, self.absorber_hardware, self.beamstop_manager)
-        self.file_handler = fileio.FileHandler(config, self.image_view, self.widget, self.beamstop_manager)
+        self.file_handler = fileio.FileHandler(config, self.image_view, self.logsplitter, self.beamstop_manager)
         self.beamstop_mover = absorberfunctions.BeamstopMover(config, self.image_view, self.absorber_hardware, self.beamstop_manager)
 
         self.lg.debug("initializing and adding widgets")
@@ -44,14 +53,24 @@ class MainWindow(QtGui.QMainWindow):
         self.button_home.clicked.connect(self.home)
         self.add_beamstops.clicked.connect(self.file_handler.open_beamstop_list)
 
-        self.widget.layout().addWidget(self.image_view.im_view, 0, 1, 10, 10)
-        self.widget.layout().addWidget(self.button_new_target, 0, 0)
-        self.widget.layout().addWidget(self.button_open_file, 1, 0)
-        self.widget.layout().addWidget(self.button_home, 2, 0)
-        self.widget.layout().addWidget(self.button_reset_all_beamstops, 3, 0)
-        self.widget.layout().addWidget(self.button_re_arrange, 4, 0)
-        self.widget.layout().addWidget(self.add_beamstops, 5, 0)
-        self.setCentralWidget(self.widget)
+        self.buttonsplitter.addWidget(self.image_view.im_view)
+        self.buttonsplitter.setStretchFactor(0, 0)
+        self.buttonsplitter.setStretchFactor(1, 1)
+
+        self.logsplitter.addWidget(self.status_monitor)
+        self.logsplitter.setStretchFactor(0, 1)
+        self.logsplitter.setStretchFactor(1, 0)
+
+        self.buttons.layout().addStretch()
+        self.buttons.layout().addWidget(self.button_new_target)
+        self.buttons.layout().addWidget(self.button_open_file)
+        self.buttons.layout().addWidget(self.button_home)
+        self.buttons.layout().addWidget(self.button_reset_all_beamstops)
+        self.buttons.layout().addWidget(self.button_re_arrange)
+        self.buttons.layout().addWidget(self.add_beamstops)
+        self.buttons.layout().addStretch()
+
+        self.setCentralWidget(self.logsplitter)
         self.show()
 
     def rearrange(self):

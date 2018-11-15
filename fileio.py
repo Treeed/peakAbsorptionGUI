@@ -27,22 +27,3 @@ class FileHandler:
             with open(file_name, newline='') as parking_list:
                 parking_nrs = np.loadtxt(parking_list, delimiter=",", dtype=int)
             self.im_view.add_beamstop_circles(self.beamstop_manager.add_beamstops(parking_nrs))
-
-
-def init_logger():
-    lg = logging.getLogger("main")
-    lg.setLevel(logging.DEBUG)
-
-    # these values should be configurable, but then we would need to load the config before being able to log that config loading failed...
-    formatter = logging.Formatter('%(asctime)s %(levelname)-8s %(name)-40s: %(message)s', '%Y-%m-%d %H:%M:%S')
-    file_handler = logging.FileHandler("absorber.log")
-    file_handler.setFormatter(formatter)
-    file_handler.setLevel(logging.INFO)
-    console_handler = logging.StreamHandler()
-    console_handler.setFormatter(formatter)
-    console_handler.setLevel(logging.DEBUG)
-
-    lg.addHandler(file_handler)
-    lg.addHandler(console_handler)
-
-    lg.info("initialized logger")
