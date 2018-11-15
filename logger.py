@@ -28,7 +28,7 @@ class LogStatusMonitor(logging.Handler):
         if record.levelno >= 40:
             self.highlight_format.setBackground(QtGui.QColor("red"))
         elif record.levelno >= 30:
-            self.highlight_format.setBackground(QtGui.QColor("yellow"))
+            self.highlight_format.setBackground(QtGui.QColor("orange"))
         elif record.levelno >= 20:
             self.highlight_format.setBackground(QtGui.QColor("green"))
         elif record.levelno >= 10:
