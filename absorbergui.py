@@ -95,7 +95,7 @@ class ImageDrawer:
         self.config = config
         self.absorber_hardware = absorber_hardware
         self.beamstop_manager = beamstop_manager
-        self.im_view = pg.ImageView()
+        self.im_view = NoButtonImageView()
         self.im_view.getView().invertY(False)
 
         self.items = {
@@ -191,3 +191,8 @@ class ImageDrawer:
         color = self.config.Gui.color_crosshair.map(gripper_pos)
         self.items["crosshair"][0].setPen(color)
         self.items["crosshair"][1].setPen(color)
+
+
+class NoButtonImageView(pg.ImageView):
+    def keyPressEvent(self, ev):
+        pass
