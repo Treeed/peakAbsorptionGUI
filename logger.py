@@ -49,18 +49,19 @@ def init_logger():
     lg.setLevel(logging.DEBUG)
 
     # these values should be configurable, but then we would need to load the config before being able to log that config loading failed...
-    formatter = logging.Formatter('%(asctime)s %(levelname)-8s %(name)-40s: %(message)s')
+    monospace_formatter = logging.Formatter('%(asctime)s %(levelname)-8s %(name)-40s: %(message)s')
+    status_monitor_formatter = logging.Formatter('%(levelname)s: %(message)s')
 
     file_handler = logging.FileHandler("absorber.log")
-    file_handler.setFormatter(formatter)
+    file_handler.setFormatter(monospace_formatter)
     file_handler.setLevel(logging.INFO)
 
     console_handler = logging.StreamHandler()
-    console_handler.setFormatter(formatter)
+    console_handler.setFormatter(monospace_formatter)
     console_handler.setLevel(logging.DEBUG)
 
     status_monitor_handler = LogStatusMonitor()
-    status_monitor_handler.setFormatter(formatter)
+    status_monitor_handler.setFormatter(status_monitor_formatter)
     status_monitor_handler.setLevel(logging.INFO)
 
     lg.addHandler(file_handler)
