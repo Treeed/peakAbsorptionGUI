@@ -36,6 +36,8 @@ class MainWindow(QtGui.QMainWindow):
         self.button_home = QtGui.QPushButton("experimental homing")
         self.add_beamstops = QtGui.QPushButton("add beamstops")
 
+        self.hardware_buttons = [self.button_re_arrange, self.button_home]
+
         self.lg.debug("importing config")
         import config as config
 
@@ -74,18 +76,25 @@ class MainWindow(QtGui.QMainWindow):
         self.show()
 
     def rearrange(self):
-        self.set_enable_all_hardware_buttons(False)
-        self.beamstop_mover.rearrange_all_beamstops()
-        self.set_enable_all_hardware_buttons(True)
+        with DisableButtons(self.hardware_buttons):
+            self.beamstop_mover.rearrange_all_beamstops()
 
     def home(self):
-        self.set_enable_all_hardware_buttons(False)
-        self.absorber_hardware.home()
-        self.set_enable_all_hardware_buttons(True)
+        with DisableButtons(self.hardware_buttons):
+            self.absorber_hardware.home()
 
-    def set_enable_all_hardware_buttons(self, enabled):
-        self.button_re_arrange.setEnabled(enabled)
-        self.button_home.setEnabled(enabled)
+
+class DisableButtons:
+    def __init__(self, buttons):
+        self.buttons = buttons
+
+    def __enter__(self):
+        for button in self.buttons:
+            button.setEnabled(False)
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        for button in self.buttons:
+            button.setEnabled(True)
 
 
 class ImageDrawer:
