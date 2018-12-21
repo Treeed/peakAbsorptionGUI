@@ -15,13 +15,18 @@ class PeakAbsorber:
     idle_polling_rate = 5
     moving_polling_rate = 60
 
-    # speeds at which the beamstops are moved in steps per second
+    # speeds at which the beamstops are moved in steps per second. This is first a limit on the total gripper speed and second a limit on the speed of each individual axis.
+    # when moving a beamstops the diagonal gripper speed is important so it doesn't loose its magnet but when traveling only the individual axises have speed limits
+    # 0 means unlimited. When homing only the individual speed limits are used
     slewrates = {
-        "travel": 100000,
-        "beamstop": 100000,
-        "homing": 1000,
-        "homing_precise": 100,
+        "travel": (0, 70000),
+        "beamstop": (30000, 50000),
+        "homing": (0, 1000),
+        "homing_precise": (0, 100),
     }
+    # maximum acceleration to be set on the motors in steps/s^2
+    # the acceleration needs to be set by the gui to match the motor movements to each other. Make sure to set the Baserate to zero or this will not work and collisions between beamstops may occur because the exact trajectory is not known by the software
+    max_acceleration = 10000
 
     # positive limits of the drive mechanism (negative limits are always zero)
     limits = np.array([500, 495])

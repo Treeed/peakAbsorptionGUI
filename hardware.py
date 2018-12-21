@@ -37,13 +37,34 @@ class PeakAbsorberHardware:
     def move_to(self, pos, slewrate="beamstop"):
         self.lg.debug("moving to %s with %s speed", str(pos), slewrate)
         # TODO: handle errors
-        distance = [self._motor_x.position - pos[0], self._motor_y.position - pos[1]]
+        distance = np.abs([self._motor_x.position - pos[0], self._motor_y.position - pos[1]])
         travel_distance = absorberfunctions.calc_vec_len([distance[0], distance[1]])
         if travel_distance < self.config.PeakAbsorber.epsilon:
             return
         # calculate slewrates at which the motors will reach their target values simultaneously and the total grabber speed matches the set slewrate
-        self._motor_x.slewrate = abs(distance[0]) * self.config.PeakAbsorber.slewrates[slewrate] / travel_distance
-        self._motor_y.slewrate = abs(distance[1]) * self.config.PeakAbsorber.slewrates[slewrate] / travel_distance
+        slewrates = None
+        if self.config.PeakAbsorber.slewrates[slewrate][0]:
+            slewrates = distance * self.config.PeakAbsorber.slewrates[slewrate][0] / travel_distance
+        # if no total grabber slewrate was specified or the limit for the individual axises is lower than the calculated slewrates set the axis
+        # with the most way to travel to the maximum axis speed and the other to a fraction of the speed so both reach their targets simultaneously
+        further_axis = np.argmax(distance)
+        if self.config.PeakAbsorber.slewrates[slewrate][1] and (slewrates is None or np.any(slewrates > self.config.PeakAbsorber.slewrates[slewrate][1])):
+            slewrates = [0, 0]
+            slewrates[further_axis] = self.config.PeakAbsorber.slewrates[slewrate][1]
+            slewrates[int(not further_axis)] = distance[int(not further_axis)] * self.config.PeakAbsorber.slewrates[slewrate][1] / distance[further_axis]
+        if slewrates is None:
+            raise absorberfunctions.ConfigError("slewrates[{}]".format(slewrate), "slewrate limits for any action cannot both be zero")
+
+        # set the accelerations to the maximum values at which the ratio is the same as the ratio of the distances so that the axises reach their target speeds simultanously
+        # Similar to the version for the slewrates but without an option for a total acceleration of the grabber because the grabber and beamstops are not very heavy but the individual translations are
+        accelerations = [0, 0]
+        accelerations[further_axis] = self.config.PeakAbsorber.max_acceleration
+        accelerations[int(not further_axis)] = distance[int(not further_axis)] * self.config.PeakAbsorber.max_acceleration / distance[further_axis]
+
+        self._motor_x.slewrate = slewrates[0]
+        self._motor_y.slewrate = slewrates[1]
+        self._motor_x.acceleration = accelerations[0]
+        self._motor_y.acceleration = accelerations[1]
         self._motor_x.position = pos[0]
         self._motor_y.position = pos[1]
         self.updater.set_motor_moving()
