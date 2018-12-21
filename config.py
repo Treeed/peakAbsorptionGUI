@@ -24,7 +24,7 @@ class PeakAbsorber:
     }
 
     # positive limits of the drive mechanism (negative limits are always zero)
-    limits = np.array([500, 400])
+    limits = np.array([500, 495])
     # radius of one beamstop for display and collision detection
     beamstop_radius = 1.5
     # time it takes the gripper to fully extend or retract after the corresponding bit as been set on the tango server
@@ -40,7 +40,7 @@ class PeakAbsorber:
     # virtual penalty distance added to parked beamstops to avoid moving them into the active area
     # this is used during the beamstop assignment to make sure all active beamstops are used up before parked ones get moved in
     # set this to the maximum possible movement distance of the peak absorber
-    beamstop_inactive_cost = 500
+    beamstop_inactive_cost = 1000
 
 
 class Detector:
