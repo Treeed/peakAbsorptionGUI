@@ -184,6 +184,18 @@ class BeamstopMoveParking(BeamstopMoveTarget):
         self.beamstop_manager.occupy_parking_position(self.parking_nr, self.beamstop_nr)
 
 
+class ConfigError(Exception):
+    """Exception raised if a config value isn't within the expected range"""
+    def __init__(self, value, message):
+        """
+        init
+        :param value: name of the value that didn't meet expectations
+        :param message: error message
+        """
+        self.value = value
+        self.message = message
+
+
 # get the length of a vector or list of vectors
 def calc_vec_len(vec):
     vec = np.array(vec)

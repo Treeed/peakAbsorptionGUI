@@ -34,7 +34,12 @@ class PeakAbsorber:
     # time after which a single move is aborted and considered failed
     timeout_ms = 100000
     # distance in mm we need to move out of the limit switch to make sure it definitely turns off
-    limit_switch_max_hysterisis = [10, 10]
+    limit_switch_max_hysterisis = [1, 1]
+    # motor direction in which the coordinate values decrease / side on which the limit switch that represents the origin is for axes [x, y]
+    # each axis can be "cw" or "ccw"
+    zero_limit = ["ccw", "ccw"]
+    # distance error above which you can't catch a beamstop anymore
+    max_distance_error = 1
     # distance below which differences are considered a floating point error
     epsilon = 0.0001
     # virtual penalty distance added to parked beamstops to avoid moving them into the active area

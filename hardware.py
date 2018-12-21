@@ -59,37 +59,82 @@ class PeakAbsorberHardware:
         self.lg.info("went home")
 
     def home(self, precise=True):
-        # TODO: this function cannot be tested in simulation mode and therefore needs testing and adjusting on the hardware
+        """
+        Moves the translations to their negative limit switches and sets the origin just outside of them
+
+        :param boolean precise:  If this is set after initially slamming into the limit switches, possible slightly missing the exact switching point, another slow approach is done to improve repeatability
+        :returns: Correction in mm that was done to the origin.
+        """
         self.lg.info("homing translations")
         self.move_to_limits("homing")
-        correction = np.array(self.get_hardware_status()[0][0:1])
-        self._motor_x.SetStepPosition(0)
-        self._motor_y.SetStepPosition(0)
+        correction = np.array(self.get_hardware_status()[0][0:2])
+        self.zero_steps()
         self.move_to(self.config.PeakAbsorber.limit_switch_max_hysterisis, "travel")
-        if self._motor_x.cwlimit or self._motor_y.cwlimit:
-            self.lg.critical("homing switches didn't disengage after moving %s out!", str(self.config.PeakAbsorber.limit_switch_max_hysterisis))
+        self.check_limits_disengaged()
         if precise:
             self.move_to_limits("homing_precise")
-            correction += np.array(self.get_hardware_status()[0][0:1])
-            self._motor_x.SetStepPosition(0)
-            self._motor_y.SetStepPosition(0)
+            correction += np.array(self.get_hardware_status()[0][0:2])
+            self.zero_steps()
             self.move_to(self.config.PeakAbsorber.limit_switch_max_hysterisis, "travel")
-            if self._motor_x.cwlimit or self._motor_y.cwlimit:
-                self.lg.critical("homing switches didn't disengage after moving %s out!", str(self.config.PeakAbsorber.limit_switch_max_hysterisis))
-        self._motor_x.SetStepPosition(0)
-        self._motor_y.SetStepPosition(0)
-        self.lg.info("homing corrected position by %s mm", str(correction))
+            self.check_limits_disengaged()
+        correction += np.array(self.get_hardware_status()[0][0:2])
+        self.zero_steps()
+        if abs(correction[0]) > self.config.PeakAbsorber.max_distance_error or abs(correction[1]) > self.config.PeakAbsorber.max_distance_error:
+            self.lg.warning("Homing corrected by %s mm. The correction done by homing was too large to catch beamstops placed before the correction. You should repark all beamstops manually. Failure to do so may result in hardware damage.", str(correction))
+        else:
+            self.lg.info("homing corrected position by %s mm", str(correction))
         return correction
-        # TODO: if the correction is too high warn the user that the beamstops need to be reparked manually
+
+    def check_limits_disengaged(self):
+        """helper function for homing, checks if homing switches are disengaged and raises an error if not"""
+        if self.config.PeakAbsorber.zero_limit[0] == "cw":
+            xlimit = self._motor_x.cwlimit
+        elif self.config.PeakAbsorber.zero_limit[0] == "ccw":
+            xlimit = self._motor_x.ccwlimit
+        else:
+            raise absorberfunctions.ConfigError("PeakAbsorber.zero_limit[0]", "zero_limit isn't cw or ccw")
+
+        if self.config.PeakAbsorber.zero_limit[0] == "cw":
+            ylimit = self._motor_y.cwlimit
+        elif self.config.PeakAbsorber.zero_limit[0] == "ccw":
+            ylimit = self._motor_y.ccwlimit
+        else:
+            raise absorberfunctions.ConfigError("PeakAbsorber.zero_limit[1]", "zero_limit isn't cw or ccw")
+
+        if xlimit or ylimit:
+            raise HardwareError("homing", "homing switches didn't disengage after moving {} out!".format(self.config.PeakAbsorber.limit_switch_max_hysterisis))
 
     def move_to_limits(self, slewrate):
+        """
+        Moves the motors to the negative limit switches.
+        :param slewrate: Slewrate to move at. Should be "homing" or "homing_precise"
+        :return: nothing
+        """
         self.lg.debug("moving to cw limits")
         self._motor_x.slewrate = self.config.PeakAbsorber.slewrates[slewrate]
         self._motor_y.slewrate = self.config.PeakAbsorber.slewrates[slewrate]
-        self._motor_x.moveToCwLimit()
-        self._motor_y.moveToCwLimit()
+
+        if self.config.PeakAbsorber.zero_limit[0] == "cw":
+            self._motor_x.moveToCwLimit()
+        elif self.config.PeakAbsorber.zero_limit[0] == "ccw":
+            self._motor_x.moveToCcwLimit()
+        else:
+            raise absorberfunctions.ConfigError("PeakAbsorber.zero_limit[0]", "zero_limit isn't cw or ccw")
+
+        if self.config.PeakAbsorber.zero_limit[0] == "cw":
+            self._motor_y.moveToCwLimit()
+        elif self.config.PeakAbsorber.zero_limit[0] == "ccw":
+            self._motor_y.moveToCcwLimit()
+        else:
+            raise absorberfunctions.ConfigError("PeakAbsorber.zero_limit[0]", "zero_limit isn't cw or ccw")
+
         self.updater.set_motor_moving()
         self.wait(self.config.PeakAbsorber.timeout_ms, self.updater.moveFinished)
+
+    def zero_steps(self):
+        """helper function for homing, sets the current position to be the coordinate origin"""
+        self._motor_x.SetStepPosition(0)
+        self._motor_y.SetStepPosition(0)
 
     @staticmethod
     def wait(timeout, signal=None):
@@ -175,3 +220,18 @@ class MovementUpdater(QObject):
             self.gripperFinished.emit()
 
         self.gripperChanged.emit(self.estimated_real_gripper_pos)
+
+class HardwareError(Exception):
+    """
+    Exception if something unexpected happens to the hardware
+    """
+
+    def __init__(self, action, message):
+        """
+        init
+
+        :param str action: action that was performed
+        :param str message: error message
+        """
+        self.action = action
+        self.message = message
