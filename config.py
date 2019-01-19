@@ -64,6 +64,8 @@ class Detector:
     # this is used to scale the image, so picture-resolution*pixel_size should match the "active area"
     # the value is stored in float64, feel free to put some decimal places here
     pixel_size = np.array([0.09765625, 0.09765625])
+    # manipulations to apply to the image in order. Any number of manipulations can be inserted. Available are "rot90" "rot180" "rot270" "mir_horiz" "mir_vert"
+    image_manipulations = []
 
 
 class Gui:
