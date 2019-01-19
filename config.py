@@ -34,8 +34,10 @@ class PeakAbsorber:
     beamstop_radius = 1.5
     # time it takes the gripper to fully extend or retract after the corresponding bit as been set on the tango server
     gripper_time_ms = 2000
-    # distance of the outermost part to the center of the gripper for collision detection when the gripper is down
-    gripper_radius = 10
+    # radius which needs to be free of obstacles around the gripper when it is down.
+    # Not considering the magnets this would be the distance of the outermost part to the center of the gripper
+    # but because the magnets attract each other on a bigger radius this is the safe distance that needs to be kept between magnets so they don't snap together minus 1.5 (radius of a beamstop)
+    gripper_radius = 15
     # time after which a single move is aborted and considered failed
     timeout_ms = 100000
     # distance in mm we need to move out of the limit switch to make sure it definitely turns off
