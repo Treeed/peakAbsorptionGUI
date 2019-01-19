@@ -77,7 +77,9 @@ class BeamstopMover:
         simulation_beamstops = self.beamstop_manager.beamstops.copy()
         collision_detector = collisiondetection.CollisionDetection()
         for move in moves:
-            move.set_stopovers(collision_detector.find_path(move.get_target_pos(), move.get_beamstop_pos(), simulation_beamstops, self.config.PeakAbsorber.gripper_radius + self.config.PeakAbsorber.beamstop_radius))
+            # calculate beamstop list which excludes the currently driven beamstop and has [x, y, distance_to_current] instead of just [x, y]
+            collision_bs_list = np.append(np.delete(simulation_beamstops, move.beamstop_nr, 0), calc_vec_len(np.delete(simulation_beamstops, move.beamstop_nr, 0)-move.get_beamstop_pos())[:, np.newaxis], 1)
+            move.set_stopovers(collision_detector.find_path(move.get_target_pos(), move.get_beamstop_pos(), collision_bs_list, self.config.PeakAbsorber.gripper_radius + self.config.PeakAbsorber.beamstop_radius, max_multi=30))
             move.add_lines()
             simulation_beamstops[move.beamstop_nr] = move.get_target_pos()
 
