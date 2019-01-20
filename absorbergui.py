@@ -34,26 +34,28 @@ class MainWindow(QtGui.QMainWindow):
         self.button_reset_all_beamstops = QtGui.QPushButton("reset all handles")
         self.button_re_arrange = QtGui.QPushButton("rearrange")
         self.button_home = QtGui.QPushButton("experimental homing")
-        self.add_beamstops = QtGui.QPushButton("add beamstops")
+        self.save_state = QtGui.QPushButton("save current state")
+        self.load_state = QtGui.QPushButton("load positions")
 
-        self.hardware_buttons = [self.button_re_arrange, self.button_home]
+        self.hardware_buttons = [self.button_re_arrange, self.button_home, self.save_state]
 
         self.lg.debug("importing config")
         import config as config
 
-        self.beamstop_manager = absorberfunctions.BeamstopManager(config)
         self.absorber_hardware = hardware.PeakAbsorberHardware(config)
-        self.image_view = ImageDrawer(config, self.absorber_hardware, self.beamstop_manager)
-        self.file_handler = fileio.FileHandler(config, self.image_view, self.logsplitter, self.beamstop_manager)
+        self.image_view = ImageDrawer(config)
+        self.beamstop_manager = absorberfunctions.BeamstopManager(config, self.image_view)
         self.beamstop_mover = absorberfunctions.BeamstopMover(config, self.image_view, self.absorber_hardware, self.beamstop_manager)
+        self.file_handler = fileio.FileHandler(config, self.image_view, self.logsplitter, self.beamstop_manager, self.beamstop_mover)
 
         self.lg.debug("initializing and adding widgets")
-        self.button_new_target.clicked.connect(self.image_view.add_handle)
+        self.button_new_target.clicked.connect(self.image_view.add_default_handle)
         self.button_open_file.clicked.connect(self.file_handler.open_image)
         self.button_reset_all_beamstops.clicked.connect(self.image_view.reset_all_handles)
         self.button_re_arrange.clicked.connect(self.rearrange)
         self.button_home.clicked.connect(self.home)
-        self.add_beamstops.clicked.connect(self.file_handler.open_beamstop_list)
+        self.save_state.clicked.connect(self.file_handler.save_state_handles)
+        self.load_state.clicked.connect(self.file_handler.load_state)
 
         self.buttonsplitter.addWidget(self.image_view.im_view)
         self.buttonsplitter.setStretchFactor(0, 0)
@@ -69,7 +71,8 @@ class MainWindow(QtGui.QMainWindow):
         self.buttons.layout().addWidget(self.button_home)
         self.buttons.layout().addWidget(self.button_reset_all_beamstops)
         self.buttons.layout().addWidget(self.button_re_arrange)
-        self.buttons.layout().addWidget(self.add_beamstops)
+        self.buttons.layout().addWidget(self.save_state)
+        self.buttons.layout().addWidget(self.load_state)
         self.buttons.layout().addStretch()
 
         self.setCentralWidget(self.logsplitter)
@@ -98,12 +101,10 @@ class DisableButtons:
 
 
 class ImageDrawer:
-    def __init__(self, config, absorber_hardware, beamstop_manager):
+    def __init__(self, config):
         self.lg = logging.getLogger("main.gui.imagedrawer")
         self.lg.debug("initializing image drawer")
         self.config = config
-        self.absorber_hardware = absorber_hardware
-        self.beamstop_manager = beamstop_manager
         self.im_view = NoButtonImageView()
         self.im_view.getView().invertY(False)
 
@@ -155,11 +156,17 @@ class ImageDrawer:
         self.im_view.addItem(item)
         self.items[purpose].append(item)
 
-    def add_handle(self):
+    def add_handle(self, pos, radius, color):
         self.lg.debug("adding handle")
-        handle = pg.CircleROI([100, 100], [50, 50], pen=(9, 15), removable=True)
+        handle = pg.CircleROI(pos, radius*2, pen=(pg.mkPen(color)), removable=True)
         handle.sigRemoveRequested.connect(self.remove_handle)
         self.add_graphics_item(handle, "handles")
+
+    def add_handle_in_machine_coord(self, pos, radius=2, color='b'):
+        self.add_handle(self.machine_to_img_coord(np.array(pos)-radius), self.machine_to_img_scale(radius), color)
+
+    def add_default_handle(self):
+        self.add_handle_in_machine_coord([200, 200])
 
     def set_image(self, array):
             self.im_view.setImage(array)
@@ -188,8 +195,6 @@ class ImageDrawer:
         line_y = pg.InfiniteLine(0, 0, 'g')
         self.add_graphics_item(line_x, "crosshair")
         self.add_graphics_item(line_y, "crosshair")
-        self.absorber_hardware.updater.posChanged.connect(self.set_crosshair_pos)
-        self.absorber_hardware.updater.gripperChanged.connect(self.set_crosshair_color)
 
     def set_crosshair_pos(self, pos):
         img_pos = self.machine_to_img_coord(pos)
@@ -203,5 +208,6 @@ class ImageDrawer:
 
 
 class NoButtonImageView(pg.ImageView):
+    """the image view by default tries to cycle through a set of images when the arrow keys are used. If only a single image is loaded it just crashes. This disables this functionality"""
     def keyPressEvent(self, ev):
         pass

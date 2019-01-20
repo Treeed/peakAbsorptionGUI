@@ -7,6 +7,7 @@ import scipy.optimize
 import pyqtgraphutils
 import logging
 
+
 class BeamstopMover:
     def __init__(self, config, im_view, absorber_hardware, beamstop_manager):
         self.config = config
@@ -15,6 +16,9 @@ class BeamstopMover:
         self.beamstop_manager = beamstop_manager
 
         self.lg = logging.getLogger("main.absorberfunctions.beamstopmover")
+
+        self.absorber_hardware.updater.posChanged.connect(self.im_view.set_crosshair_pos)
+        self.absorber_hardware.updater.gripperChanged.connect(self.im_view.set_crosshair_color)
 
     def rearrange_all_beamstops(self):
         self.lg.info("calulating beamstop assignment")
@@ -93,23 +97,25 @@ class BeamstopMover:
 
 
 class BeamstopManager:
-    def __init__(self, config):
+    def __init__(self, config, im_view):
         self.config = config
+        self.im_view = im_view
         self.beamstops = np.empty((0, 2))
         self.beamstop_parked = np.empty(0, dtype=np.int)
         self.parking_position_occupied = np.zeros(len(self.config.ParkingPositions.parking_positions), dtype=np.int)
         self.lg = logging.getLogger("main.absorberfunctions.beamstopmanager")
 
-    def add_beamstops(self, parking_nrs):
-        self.lg.info("adding %d beamstops", len(parking_nrs))
-        if self.parking_position_occupied[parking_nrs].any():
+    def add_beamstops(self, new_positions):
+        self.lg.info("adding %d beamstops", len(new_positions))
+        parked_beamstops = np.argwhere(np.isclose(calc_vec_len(self.config.ParkingPositions.parking_positions - new_positions[:, np.newaxis]), 0))
+        if self.parking_position_occupied[parked_beamstops[:, 1]].any():
             self.lg.warning("cannot put beamstop on occupied parking position")
             return None
-        self.parking_position_occupied[parking_nrs] = np.arange(self.beamstops.size, self.beamstops.size+len(parking_nrs))+1
-        self.beamstop_parked = np.concatenate([self.beamstop_parked, parking_nrs+1])
-        positions = self.config.ParkingPositions.parking_positions[parking_nrs]
-        self.beamstops = np.concatenate([self.beamstops, positions])
-        return positions
+        self.parking_position_occupied[parked_beamstops[:, 1]] = self.beamstops.size + parked_beamstops[:, 0] + 1
+        self.beamstop_parked = np.concatenate([self.beamstop_parked, np.zeros(len(new_positions), dtype=np.int)])
+        self.beamstop_parked[parked_beamstops[:, 0]+len(self.beamstops)] = parked_beamstops[:, 1] + 1
+        self.beamstops = np.concatenate([self.beamstops, new_positions])
+        self.im_view.add_beamstop_circles(new_positions)
 
     def occupy_parking_position(self, parking_nr, beamstop_nr):
         self.lg.debug("occupying parking pos %d with beamstop %d", parking_nr, beamstop_nr)
