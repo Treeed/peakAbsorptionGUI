@@ -106,7 +106,6 @@ class BeamstopManager:
         self.lg = logging.getLogger("main.absorberfunctions.beamstopmanager")
 
     def add_beamstops(self, new_positions):
-        self.lg.info("adding %d beamstops", len(new_positions))
         parked_beamstops = np.argwhere(np.isclose(calc_vec_len(self.config.ParkingPositions.parking_positions - new_positions[:, np.newaxis]), 0))
         if self.parking_position_occupied[parked_beamstops[:, 1]].any():
             self.lg.warning("cannot put beamstop on occupied parking position")
@@ -116,6 +115,7 @@ class BeamstopManager:
         self.beamstop_parked[parked_beamstops[:, 0]+len(self.beamstops)] = parked_beamstops[:, 1] + 1
         self.beamstops = np.concatenate([self.beamstops, new_positions])
         self.im_view.add_beamstop_circles(new_positions)
+        return len(new_positions)
 
     def occupy_parking_position(self, parking_nr, beamstop_nr):
         self.lg.debug("occupying parking pos %d with beamstop %d", parking_nr, beamstop_nr)

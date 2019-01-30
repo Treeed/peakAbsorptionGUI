@@ -54,8 +54,8 @@ class MainWindow(QtGui.QMainWindow):
         self.button_reset_all_beamstops.clicked.connect(self.image_view.reset_all_handles)
         self.button_re_arrange.clicked.connect(self.rearrange)
         self.button_home.clicked.connect(self.home)
-        self.save_state.clicked.connect(self.file_handler.save_state_handles)
-        self.load_state.clicked.connect(self.file_handler.load_state)
+        self.save_state.clicked.connect(self.file_handler.save_state_gui)
+        self.load_state.clicked.connect(self.file_handler.load_state_gui)
 
         self.buttonsplitter.addWidget(self.image_view.im_view)
         self.buttonsplitter.setStretchFactor(0, 0)
