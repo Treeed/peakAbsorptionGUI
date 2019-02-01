@@ -17,11 +17,11 @@ class PeakAbsorberHardware:
         self.lg = logging.getLogger("main.hardware.hardware")
 
     def move_beamstop(self, move):
-        self.lg.info("moving beamstop %d to %s", move.beamstop_nr, str(move.get_target_pos()))
-        self.move_to(move.get_beamstop_pos(), "travel")
+        self.lg.info("moving beamstop %d to %s", move.beamstop_nr, str(move.target_pos))
+        self.move_to(move.beamstop_pos, "travel")
         self.move_gripper(1)
         self.updater.set_current_move(move)
-        for pos in move.get_path():
+        for pos in move.path:
             self.move_to(pos, "beamstop")
         self.updater.set_current_move(None)
         self.move_gripper(0)
@@ -241,6 +241,7 @@ class MovementUpdater(QObject):
             self.gripperFinished.emit()
 
         self.gripperChanged.emit(self.estimated_real_gripper_pos)
+
 
 class HardwareError(Exception):
     """

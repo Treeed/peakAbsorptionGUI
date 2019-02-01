@@ -82,7 +82,6 @@ class CollisionDetection:
         #QtCore.pyqtRemoveInputHook() #for debugging
         #pdb.set_trace() #for debugging
         kascade=[]
-        # kascade.append(target)
         col_issues=[]
         col_issues=self.col_check(next_bs,used_bs,target)
         if len(col_issues) > 0:
@@ -93,6 +92,7 @@ class CollisionDetection:
                 next_bs=bypass
                 col_issues=self.col_check(next_bs,used_bs,target)
         #print kascade,"kascade done"
+        kascade.append(target)
         return kascade
 
     def calc_alpha(self, xn, x0, yn, y0):
