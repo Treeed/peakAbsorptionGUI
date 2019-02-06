@@ -61,9 +61,9 @@ class FileHandler:
                 to_save["beamstops"].append({
                     "position": list(beamstop)
                 })
-        if save_handles and self.im_view.items["handles"]:
+        if save_handles and self.im_view.handles.items:
             to_save["handles"] = []
-            for handle in self.im_view.get_handles_machine_coords():
+            for handle in self.im_view.handles.get_handle_positions():
                 to_save["handles"].append({
                     "position": list(handle)
                 })
@@ -109,7 +109,7 @@ class FileHandler:
         if load_handles and "handles" in loaded_data and loaded_data["handles"]:
             handles = np.array([handle["position"] for handle in loaded_data["handles"]])
             for handle in handles:
-                self.im_view.add_handle_in_machine_coord(handle)
+                self.im_view.handles.add_handle(handle)
             loaded_handles = len(handles)
         self.lg.info("loaded %s beamstops and %s handles", loaded_beamstops, loaded_handles)
 

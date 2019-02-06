@@ -4,7 +4,6 @@ import collisiondetection
 import numpy as np
 import scipy.optimize
 
-import pyqtgraphutils
 import logging
 
 
@@ -17,16 +16,16 @@ class BeamstopMover:
 
         self.lg = logging.getLogger("main.absorberfunctions.beamstopmover")
 
-        self.absorber_hardware.updater.posChanged.connect(self.im_view.set_crosshair_pos)
-        self.absorber_hardware.updater.gripperChanged.connect(self.im_view.set_crosshair_color)
+        self.absorber_hardware.updater.posChanged.connect(self.im_view.crosshair.set_crosshair_pos)
+        self.absorber_hardware.updater.gripperChanged.connect(self.im_view.crosshair.set_crosshair_color)
 
     def rearrange_all_beamstops(self):
         self.lg.info("calulating beamstop assignment")
-        if len(self.im_view.items["handles"]) > len(self.beamstop_manager.beamstops):
+        if len(self.im_view.handles.items) > len(self.beamstop_manager.beamstops):
             self.lg.warning("not enough beamstops available")
             return
 
-        handle_positions = self.im_view.get_handles_machine_coords()
+        handle_positions = self.im_view.handles.get_handle_positions()
         if handle_positions.size > 0:
             self.lg.debug("handles available, calculating assignment to beamstops")
 
@@ -83,7 +82,7 @@ class BeamstopMover:
             # calculate beamstop list which excludes the currently driven beamstop and has [x, y, distance_to_current] instead of just [x, y]
             collision_bs_list = np.append(np.delete(simulation_beamstops, move.beamstop_nr, 0), calc_vec_len(np.delete(simulation_beamstops, move.beamstop_nr, 0)-move.beamstop_pos)[:, np.newaxis], 1)
             move.path = collision_detector.find_path(move.target_pos, move.beamstop_pos, collision_bs_list, self.config.PeakAbsorber.gripper_radius + self.config.PeakAbsorber.beamstop_radius, max_multi=30)
-            move.add_lines()
+            move.add_line()
             simulation_beamstops[move.beamstop_nr] = move.target_pos
 
     def move_beamstops(self, required_moves):
@@ -111,6 +110,9 @@ class BeamstopManager:
         # list of all parking position where each element is the index+1 of the beamspot that currently uses it or 0 if no beamstop uses it
         self._parking_position_occupied = np.zeros(len(self.config.ParkingPositions.parking_positions), dtype=np.int)
 
+        self.im_view.beamstop_circles.remover = self.remove_beamstop
+        self._beamstop_circles = []
+
     def add_beamstops(self, new_positions):
         parked_beamstops = np.argwhere(np.isclose(calc_vec_len(self.config.ParkingPositions.parking_positions - new_positions[:, np.newaxis]), 0))
         if self._parking_position_occupied[parked_beamstops[:, 1]].any():
@@ -120,8 +122,22 @@ class BeamstopManager:
         self._beamstop_parked = np.concatenate([self._beamstop_parked, np.zeros(len(new_positions), dtype=np.int)])
         self._beamstop_parked[parked_beamstops[:, 0] + len(self._beamstops)] = parked_beamstops[:, 1] + 1
         self._beamstops = np.concatenate([self._beamstops, new_positions])
-        self.im_view.add_beamstop_circles(new_positions)
+
+        for position in new_positions:
+            self._beamstop_circles.append(self.im_view.beamstop_circles.add_circle(position))
         return len(new_positions)
+
+    def remove_beamstop(self, beamstop_circle):
+        """removes a beamstop from the record.
+        This also decrements all indices pointing to elements that were at a higher position in the list that now "fall down" into the space that's freed."""
+        beamstop_nr = self._beamstop_circles.index(beamstop_circle)
+        parking_nr = self._beamstop_parked[beamstop_nr] - 1
+        self._beamstop_circles.pop(beamstop_nr)
+        self._parking_position_occupied[parking_nr] = 0
+        # decrement all indices higher than the indices we had by one
+        self._parking_position_occupied[self._parking_position_occupied > beamstop_nr] -= 1
+        self._beamstop_parked = np.delete(self._beamstop_parked, beamstop_nr, axis=0)
+        self._beamstops = np.delete(self._beamstops, beamstop_nr, axis=0)
 
     def _occupy_parking_position(self, parking_nr, beamstop_nr):
         self.lg.debug("occupying parking pos %d with beamstop %d", parking_nr, beamstop_nr)
@@ -140,11 +156,13 @@ class BeamstopManager:
         self._parking_position_occupied[parking_nr] = 0
 
     def move(self, beamstop_nr, pos):
+        # first free the parking position if we were on one (don't run occupy first or you'll free the one sou just occupied)
+        self._free_parking_position(beamstop_nr)
+        # then check if our new position is on a parking position and if so occupy that one
         new_parking_spot = np.argwhere(np.isclose(calc_vec_len(self.config.ParkingPositions.parking_positions - pos), 0))
         if new_parking_spot.size:
             self._occupy_parking_position(new_parking_spot, beamstop_nr)
         self.beamstops[beamstop_nr] = pos
-        self._free_parking_position(beamstop_nr)
 
     @property
     def parking_position_occupied(self):
@@ -158,6 +176,10 @@ class BeamstopManager:
     def beamstops(self):
         return self._beamstops
 
+    @property
+    def beamstop_circles(self):
+        return self._beamstop_circles
+
 
 class BeamstopMove:
     def __init__(self, beamstop_manager, im_view, beamstop_nr, target_pos):
@@ -166,27 +188,23 @@ class BeamstopMove:
         self.beamstop_manager = beamstop_manager
         self.im_view = im_view
 
+        self.beamstop_circle = self.beamstop_manager.beamstop_circles[self.beamstop_nr]
         self.beamstop_pos = self.beamstop_manager.beamstops[self.beamstop_nr]
         self.path = [target_pos]
-        self.trajectory_lines = None
+        self.trajectory_line = None
 
-    def add_lines(self):
-        # this should be done via a function in ImageDrawer but I haven't figured out how to manage the lines yet
-        complete_path = np.concatenate([[self.beamstop_pos], self.path], axis=0)
-        self.trajectory_lines = [pyqtgraphutils.LineSegmentItem(self.im_view.machine_to_img_coord(complete_path[segment]), self.im_view.machine_to_img_coord(complete_path[segment + 1])) for segment in range(len(complete_path) - 1)]
-        for line in self.trajectory_lines:
-            self.im_view.im_view.addItem(line)
+    def add_line(self):
+        self.trajectory_line = self.im_view.trajectory_lines.add_polyline(np.concatenate([[self.beamstop_pos], self.path], axis=0))
 
     def remove_lines(self):
-        for line in self.trajectory_lines:
-            self.im_view.im_view.removeItem(line)
+        self.im_view.trajectory_lines.remove_item(self.trajectory_line)
 
     def finish_move(self):
         self.beamstop_manager.move(self.beamstop_nr, self.target_pos)
         self.remove_lines()
 
     def update_pos(self, pos):
-        self.im_view.move_circle_in_machine_coord("beamstop_circles", self.beamstop_nr, pos)
+        self.im_view.beamstop_circles.move_circle(self.beamstop_circle, pos)
 
 
 class ConfigError(Exception):

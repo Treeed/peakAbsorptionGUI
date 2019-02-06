@@ -29,7 +29,7 @@ class MainWindow(QtGui.QMainWindow):
         self.logsplitter.addWidget(self.buttonsplitter)
         self.buttonsplitter.addWidget(self.buttons)
 
-        self.button_new_target = QtGui.QPushButton("new handle")
+        self.button_new_handle = QtGui.QPushButton("new handle")
         self.button_open_file = QtGui.QPushButton("open image")
         self.button_reset_all_beamstops = QtGui.QPushButton("reset all handles")
         self.button_re_arrange = QtGui.QPushButton("rearrange")
@@ -49,9 +49,9 @@ class MainWindow(QtGui.QMainWindow):
         self.file_handler = fileio.FileHandler(config, self.image_view, self.logsplitter, self.beamstop_manager, self.beamstop_mover)
 
         self.lg.debug("initializing and adding widgets")
-        self.button_new_target.clicked.connect(self.image_view.add_default_handle)
+        self.button_new_handle.clicked.connect(self.image_view.handles.add_default_handle)
         self.button_open_file.clicked.connect(self.file_handler.open_image)
-        self.button_reset_all_beamstops.clicked.connect(self.image_view.reset_all_handles)
+        self.button_reset_all_beamstops.clicked.connect(self.image_view.handles.reset_all_handles)
         self.button_re_arrange.clicked.connect(self.rearrange)
         self.button_home.clicked.connect(self.home)
         self.save_state.clicked.connect(self.file_handler.save_state_gui)
@@ -66,7 +66,7 @@ class MainWindow(QtGui.QMainWindow):
         self.logsplitter.setStretchFactor(1, 0)
 
         self.buttons.layout().addStretch()
-        self.buttons.layout().addWidget(self.button_new_target)
+        self.buttons.layout().addWidget(self.button_new_handle)
         self.buttons.layout().addWidget(self.button_open_file)
         self.buttons.layout().addWidget(self.button_home)
         self.buttons.layout().addWidget(self.button_reset_all_beamstops)
@@ -101,6 +101,7 @@ class DisableButtons:
 
 
 class ImageDrawer:
+    """class to hold the image view and everything that gets shown on it"""
     def __init__(self, config):
         self.lg = logging.getLogger("main.gui.imagedrawer")
         self.lg.debug("initializing image drawer")
@@ -108,24 +109,26 @@ class ImageDrawer:
         self.im_view = NoButtonImageView()
         self.im_view.getView().invertY(False)
 
-        self.items = {
-            "handles": [],
-            "beamstop_circles": [],
-            "parking_spots": [],
-            "limit_box": [],
-            "detector_box": [],
-            "crosshair": []
-        }
+        self.handles = HandleHandler(self.im_view, self.config)
+        self.beamstop_circles = BeamstopCircleHandler(self.im_view, self.config)
+        self.trajectory_lines = TrajectoryHandler(self.im_view, self.config)
+        self.outlines = OutlineHandler(self.im_view, self.config)
+        self.parking_spots = ParkingSpotHandler(self.im_view, self.config)
+        self.crosshair = CrosshairHandler(self.im_view, self.config)
 
-        self.lg.debug("adding absorber geometry and crosshair")
-        self.draw_absorber_geometry()
-        self.init_crosshair()
+    def set_image(self, array):
+            self.im_view.setImage(array)
 
-    def draw_absorber_geometry(self):
-        self.box_in_machine_coords("limit_box", [0, 0], self.config.PeakAbsorber.limits, self.config.Gui.color_absorber_geometry)
-        self.box_in_machine_coords("detector_box", self.config.Detector.detector_origin, self.config.Detector.active_area, self.config.Gui.color_absorber_geometry)
-        for parking_position in self.config.ParkingPositions.parking_positions:
-            self.circle_in_machine_coord("parking_spots", parking_position, color=self.config.Gui.color_absorber_geometry)
+
+class GraphicsHandler:
+    """base class for everything that gets drawn. children of this class contain all of a specific type of items. All coordinates given are always in machine coordinates"""
+    def __init__(self, im_view, config):
+        self.im_view = im_view
+        self.config = config
+        self.items = []
+        self.name = "Unimplemented Graphics Item"
+        self.remover = None
+        self.lg = logging.getLogger("main.gui."+type(self).__name__)
 
     def img_to_machine_coord(self, point):
         return np.array(point)*self.config.Detector.pixel_size+self.config.Detector.detector_origin
@@ -133,78 +136,108 @@ class ImageDrawer:
     def machine_to_img_coord(self, point):
         return (np.array(point)-self.config.Detector.detector_origin)/self.config.Detector.pixel_size
 
-    def img_to_machine_scale(self, point):
-        return np.array(point) * self.config.Detector.pixel_size
+    def img_to_machine_scale(self, size):
+        return np.array(size) * self.config.Detector.pixel_size
 
-    def machine_to_img_scale(self, point):
-        return np.array(point) / self.config.Detector.pixel_size
+    def machine_to_img_scale(self, size):
+        return np.array(size) / self.config.Detector.pixel_size
 
-    def box_in_machine_coords(self, purpose, pos, size, color='w'):
-        box = pyqtgraphutils.RectangleItem(self.machine_to_img_coord(pos), self.machine_to_img_scale(size), color)
-        self.add_graphics_item(box, purpose)
-
-    def circle_in_machine_coord(self, purpose, pos, radius=None, color='w'):
-        if radius is None:
-            radius = self.config.PeakAbsorber.beamstop_radius
-        circle = pyqtgraphutils.CircleItem(self.machine_to_img_coord(pos), self.machine_to_img_scale(radius)[0], color)
-        self.add_graphics_item(circle, purpose)
-
-    def move_circle_in_machine_coord(self, purpose, circle_nr,  pos):
-        self.items[purpose][circle_nr].setCenter(self.machine_to_img_coord(pos))
-
-    def add_graphics_item(self, item, purpose):
+    def add_item(self, item):
         self.im_view.addItem(item)
-        self.items[purpose].append(item)
+        self.items.append(item)
 
-    def add_handle(self, pos, radius, color):
+    def remove_item(self, item):
+        self.lg.debug("removing " + self.name)
+        self.im_view.removeItem(item)
+        self.items.remove(item)
+        if self.remover is not None:
+            self.remover(item)
+
+
+class HandleHandler(GraphicsHandler):
+    def add_handle(self, pos):
+        radius = self.config.Gui.radius_handle
+        self.add_handle_img_coord(self.machine_to_img_coord(np.array(pos)-radius), self.machine_to_img_scale(radius))
+
+    def add_handle_img_coord(self, pos, radius):
         self.lg.debug("adding handle")
-        handle = pg.CircleROI(pos, radius*2, pen=(pg.mkPen(color)), removable=True)
-        handle.sigRemoveRequested.connect(self.remove_handle)
-        self.add_graphics_item(handle, "handles")
-
-    def add_handle_in_machine_coord(self, pos, radius=2, color='b'):
-        self.add_handle(self.machine_to_img_coord(np.array(pos)-radius), self.machine_to_img_scale(radius), color)
+        handle = pg.CircleROI(pos, radius*2, pen=(pg.mkPen(self.config.Gui.color_handle)), removable=True)
+        handle.sigRemoveRequested.connect(self.remove_item)
+        self.add_item(handle)
 
     def add_default_handle(self):
-        self.add_handle_in_machine_coord([200, 200])
-
-    def set_image(self, array):
-            self.im_view.setImage(array)
+        self.add_handle([200, 200])
 
     def reset_all_handles(self):
         self.lg.info("resetting all handles")
-        for handle in self.items["handles"]:
+        for handle in self.items:
             self.im_view.removeItem(handle)
-        self.items["handles"].clear()
+        self.items.clear()
 
-    def remove_handle(self, handle):
-        self.lg.debug("removing handle")
-        self.im_view.removeItem(handle)
-        self.items["handles"].remove(handle)
+    def get_handle_positions(self):
+        return np.array([self.img_to_machine_coord(np.array(handle.pos())+np.array(handle.size())/2) for handle in self.items])
 
-    def add_beamstop_circles(self, positions):
-        if positions is not None:
-            for beamstop in positions:
-                self.circle_in_machine_coord("beamstop_circles", beamstop, color=self.config.Gui.color_beamstops)
 
-    def get_handles_machine_coords(self):
-        return np.array([self.img_to_machine_coord(np.array(handle.pos())+np.array(handle.size())/2) for handle in self.items["handles"]])
+class BeamstopCircleHandler(GraphicsHandler):
+    def move_circle(self, circle,  pos):
+        circle.setCenter(self.machine_to_img_coord(pos))
 
-    def init_crosshair(self):
-        line_x = pg.InfiniteLine(0, 90, 'g')
-        line_y = pg.InfiniteLine(0, 0, 'g')
-        self.add_graphics_item(line_x, "crosshair")
-        self.add_graphics_item(line_y, "crosshair")
+    def add_circle(self, pos):
+        circle = pyqtgraphutils.BeamstopCircle(self.machine_to_img_coord(pos), self.machine_to_img_scale(self.config.PeakAbsorber.beamstop_radius)[0], self.config.Gui.color_beamstops)
+        circle.sigRemoveRequested.connect(self.remove_item)
+        self.add_item(circle)
+        return circle
+
+
+class CrosshairHandler(GraphicsHandler):
+    def __init__(self, im_view, config):
+        super().__init__(im_view, config)
+        self.line_x = pg.InfiniteLine(0, 90)
+        self.line_y = pg.InfiniteLine(0, 0)
+        self.add_item(self.line_x)
+        self.add_item(self.line_y)
+        self.set_crosshair_color(0)
 
     def set_crosshair_pos(self, pos):
         img_pos = self.machine_to_img_coord(pos)
-        self.items["crosshair"][0].setValue(img_pos[0])
-        self.items["crosshair"][1].setValue(img_pos[1])
+        self.line_x.setValue(img_pos[0])
+        self.line_y.setValue(img_pos[1])
 
     def set_crosshair_color(self, gripper_pos):
         color = self.config.Gui.color_crosshair.map(gripper_pos)
-        self.items["crosshair"][0].setPen(color)
-        self.items["crosshair"][1].setPen(color)
+        self.line_x.setPen(color)
+        self.line_y.setPen(color)
+
+
+class OutlineHandler(GraphicsHandler):
+    def __init__(self, im_view, config):
+        super().__init__(im_view, config)
+        self.limit_box = self.add_box([0, 0], self.config.PeakAbsorber.limits, self.config.Gui.color_absorber_geometry)
+        self.detector_box = self.add_box(self.config.Detector.detector_origin, self.config.Detector.active_area, self.config.Gui.color_absorber_geometry)
+
+    def add_box(self, pos, size, color='w'):
+        box = pyqtgraphutils.RectangleItem(self.machine_to_img_coord(pos), self.machine_to_img_scale(size), color)
+        self.add_item(box)
+        return box
+
+
+class ParkingSpotHandler(GraphicsHandler):
+    def __init__(self, im_view, config):
+        super().__init__(im_view, config)
+        for parking_position in self.config.ParkingPositions.parking_positions:
+            self.add_circle(parking_position)
+
+    def add_circle(self, pos):
+        circle = pyqtgraphutils.CircleItem(self.machine_to_img_coord(pos), self.machine_to_img_scale(self.config.PeakAbsorber.beamstop_radius)[0], self.config.Gui.color_absorber_geometry)
+        self.add_item(circle)
+        return circle
+
+
+class TrajectoryHandler(GraphicsHandler):
+    def add_polyline(self, points):
+        line = pyqtgraphutils.PolyLineItem(self.machine_to_img_coord(points), self.config.Gui.color_trajectory)
+        self.add_item(line)
+        return line
 
 
 class NoButtonImageView(pg.ImageView):

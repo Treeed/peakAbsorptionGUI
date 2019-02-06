@@ -73,9 +73,13 @@ class Gui:
     # common ones are just letters for the starting letter of the color, pg.hsvColor() setting the hue in a scale from 0 to 1 and rgb values in the format [r, g, b]
     color_absorber_geometry = 'w'
     color_beamstops = 'r'
+    color_handle = 'b'
+    color_trajectory = 'w'
     # this is the color map used to change the crosshair color depending on the height of the gripper
     # 0 is gripper disengaged and 1 is gripper engaged
     color_crosshair = pg.ColorMap([0, 1], [[0, 255, 0], [255, 0, 0]])
+    #default radius of a handle
+    radius_handle = 2
 
 
 class ParkingPositions:
