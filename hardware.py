@@ -21,8 +21,9 @@ class PeakAbsorberHardware:
         self.move_to(move.beamstop_pos, "travel")
         self.move_gripper(1)
         self.updater.set_current_move(move)
-        for pos in move.path:
+        for pos in move.path[:-1]:
             self.move_to(pos, "beamstop")
+        self.move_to_backlash(move.path[-1])
         self.updater.set_current_move(None)
         self.move_gripper(0)
 
@@ -33,6 +34,16 @@ class PeakAbsorberHardware:
         self._gripper.value = pos
         self.updater.set_gripper_moving()
         self.wait(self.config.PeakAbsorber.timeout_ms, self.updater.gripperFinished)
+
+    def move_to_backlash(self, pos, slewrate="beamstop"):
+        """ moves to and over a point by [backlash]mm, then moves back to the point"""
+        cur_pos = np.array([self._motor_x.position, self._motor_y.position])
+        move_vector = pos-cur_pos
+        unit_move = move_vector/absorberfunctions.calc_vec_len(move_vector)
+        backlash_target = unit_move*self.config.PeakAbsorber.backlash+pos
+
+        self.move_to(backlash_target, slewrate)
+        self.move_to(pos, slewrate)
 
     def move_to(self, pos, slewrate="beamstop"):
         self.lg.debug("moving to %s with %s speed", str(pos), slewrate)

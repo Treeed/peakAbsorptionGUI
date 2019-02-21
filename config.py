@@ -28,6 +28,9 @@ class PeakAbsorber:
     # the acceleration needs to be set by the gui to match the motor movements to each other.
     # Also make sure to set the Baserate to zero on the tango server or this will not work and collisions between beamstops may occur because the exact trajectory is not known by the software
     max_acceleration = 10000
+    # distance a beamstop moves back on its trajectory after being released.
+    # This is mostly relevant because of the lower magnet being dragged behind and attracting the top magnet back
+    backlash = 0.5
 
     # positive limits of the drive mechanism (negative limits are always zero)
     limits = np.array([500, 495])
