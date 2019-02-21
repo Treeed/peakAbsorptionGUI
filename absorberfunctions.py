@@ -59,6 +59,8 @@ class BeamstopMover:
 
     def check_spacing(self, handle_positions):
         """checks whether all positions passed in here are more than gripper radius apart. Returns indices of handles too close to each other and the distances within the pairs"""
+        if not len(handle_positions):
+            return [], []
         distances = calc_vec_len(handle_positions - handle_positions[:, np.newaxis])
         # get all indices where the handles are at most gripper radius apart
         close_handles = np.array(np.where(distances <= self.config.PeakAbsorber.beamstop_spacing))
