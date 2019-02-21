@@ -121,14 +121,14 @@ class ImageDrawer:
 
 
 class GraphicsHandler:
+    name = "Unimplemented Graphics Item"
     """base class for everything that gets drawn. children of this class contain all of a specific type of items. All coordinates given are always in machine coordinates"""
     def __init__(self, im_view, config):
         self.im_view = im_view
         self.config = config
         self.items = []
-        self.name = "Unimplemented Graphics Item"
         self.remover = None
-        self.lg = logging.getLogger("main.gui."+type(self).__name__)
+        self.lg = logging.getLogger("main.gui."+self.name)
 
     def img_to_machine_coord(self, point):
         return np.array(point)*self.config.Detector.pixel_size+self.config.Detector.detector_origin
@@ -155,6 +155,7 @@ class GraphicsHandler:
 
 
 class HandleHandler(GraphicsHandler):
+    name = "handle"
     def add_handle(self, pos):
         radius = self.config.Gui.radius_handle
         self.add_handle_img_coord(self.machine_to_img_coord(np.array(pos)-radius), self.machine_to_img_scale(radius))
@@ -179,6 +180,8 @@ class HandleHandler(GraphicsHandler):
 
 
 class BeamstopCircleHandler(GraphicsHandler):
+    name = "beamstop circle"
+
     def move_circle(self, circle,  pos):
         circle.setCenter(self.machine_to_img_coord(pos))
 
@@ -190,6 +193,8 @@ class BeamstopCircleHandler(GraphicsHandler):
 
 
 class CrosshairHandler(GraphicsHandler):
+    name = "crosshair"
+
     def __init__(self, im_view, config):
         super().__init__(im_view, config)
         self.line_x = pg.InfiniteLine(0, 90)
@@ -210,6 +215,8 @@ class CrosshairHandler(GraphicsHandler):
 
 
 class OutlineHandler(GraphicsHandler):
+    name = "outline"
+
     def __init__(self, im_view, config):
         super().__init__(im_view, config)
         self.limit_box = self.add_box([0, 0], self.config.PeakAbsorber.limits, self.config.Gui.color_absorber_geometry)
@@ -222,6 +229,8 @@ class OutlineHandler(GraphicsHandler):
 
 
 class ParkingSpotHandler(GraphicsHandler):
+    name = "parking spot"
+
     def __init__(self, im_view, config):
         super().__init__(im_view, config)
         for parking_position in self.config.ParkingPositions.parking_positions:
@@ -234,6 +243,8 @@ class ParkingSpotHandler(GraphicsHandler):
 
 
 class TrajectoryHandler(GraphicsHandler):
+    name = "trajectory"
+
     def add_polyline(self, points):
         line = pyqtgraphutils.PolyLineItem(self.machine_to_img_coord(points), self.config.Gui.color_trajectory)
         self.add_item(line)
