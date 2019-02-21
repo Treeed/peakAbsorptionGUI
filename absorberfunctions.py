@@ -61,7 +61,7 @@ class BeamstopMover:
         """checks whether all positions passed in here are more than gripper radius apart. Returns indices of handles too close to each other and the distances within the pairs"""
         distances = calc_vec_len(handle_positions - handle_positions[:, np.newaxis])
         # get all indices where the handles are at most gripper radius apart
-        close_handles = np.array(np.where(distances <= self.config.PeakAbsorber.gripper_radius))
+        close_handles = np.array(np.where(distances <= self.config.PeakAbsorber.beamstop_spacing))
         # this list contains every distance twice (from a to b and from b to a) and one 0-distance where the element is compared to itself. Remove those.
         close_handles = close_handles[:,close_handles[0] > close_handles[1]]
         return close_handles, distances[tuple(close_handles)]
@@ -146,12 +146,12 @@ class BeamstopMover:
         # calculate beamstop list which excludes the currently driven beamstop and has [x, y, distance_to_current] instead of just [x, y]
         collision_bs_list = np.append(np.delete(beamstops, move.beamstop_nr, 0), calc_vec_len(np.delete(beamstops, move.beamstop_nr, 0) - move.beamstop_pos)[:, np.newaxis], 1)
         try:
-            move.path = np.array(collisiondetection.find_path(move.target_pos, move.beamstop_pos, collision_bs_list, self.config.PeakAbsorber.gripper_radius + self.config.PeakAbsorber.beamstop_radius, max_multi=30))
+            move.path = np.array(collisiondetection.find_path(move.target_pos, move.beamstop_pos, collision_bs_list, self.config.PeakAbsorber.beamstop_spacing, max_multi=30))
             if np.any([move.path[:, 0] < 0, move.path[:, 1] > 0, move.path[:, 0] > self.config.PeakAbsorber.limits[0], move.path[:, 1] > self.config.PeakAbsorber.limits[1]]):
                 raise collisiondetection.NoSolutionError("point was outside limits")
         except (collisiondetection.NoSolutionError, ArithmeticError) as error:
             self.lg.debug("using fallback algorithm because: %s", str(error))
-            move.path = pathfinder.find_path(move.beamstop_pos, move.target_pos, np.delete(beamstops, move.beamstop_nr, 0), self.config.PeakAbsorber.gripper_radius + self.config.PeakAbsorber.beamstop_radius, self.config.PeakAbsorber.limits)
+            move.path = pathfinder.find_path(move.beamstop_pos, move.target_pos, np.delete(beamstops, move.beamstop_nr, 0), self.config.PeakAbsorber.beamstop_spacing, self.config.PeakAbsorber.limits)
         return move.path is not None
 
     def move_beamstops(self, required_moves):
