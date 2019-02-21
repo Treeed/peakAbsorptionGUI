@@ -40,7 +40,7 @@ class MainWindow(QtGui.QMainWindow):
         self.hardware_buttons = [self.button_re_arrange, self.button_home, self.save_state]
 
         self.lg.debug("importing config")
-        import config as config
+        import testconfig as config
 
         self.absorber_hardware = hardware.PeakAbsorberHardware(config)
         self.image_view = ImageDrawer(config)

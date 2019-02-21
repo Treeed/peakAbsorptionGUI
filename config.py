@@ -7,8 +7,8 @@ import pyqtgraph as pg
 class PeakAbsorber:
     # address of the tango server and paths to the motors
     tango_server = 'haspp02oh1:10000/'
-    motor_x_path = 'p02/motor/elab.03'
-    motor_y_path = 'p02/motor/elab.04'
+    motor_x_path = 'p02/motor/elab.01'
+    motor_y_path = 'p02/motor/elab.02'
     gripper_path = 'p02/register/elab.out08'
 
     # rates at which the values of the tango servers are polled, when idle and when moving a beamstop respectively in Hz
@@ -25,7 +25,8 @@ class PeakAbsorber:
         "homing_precise": (0, 100),
     }
     # maximum acceleration to be set on the motors in steps/s^2
-    # the acceleration needs to be set by the gui to match the motor movements to each other. Make sure to set the Baserate to zero or this will not work and collisions between beamstops may occur because the exact trajectory is not known by the software
+    # the acceleration needs to be set by the gui to match the motor movements to each other.
+    # Also make sure to set the Baserate to zero on the tango server or this will not work and collisions between beamstops may occur because the exact trajectory is not known by the software
     max_acceleration = 10000
 
     # positive limits of the drive mechanism (negative limits are always zero)
@@ -33,11 +34,12 @@ class PeakAbsorber:
     # radius of one beamstop for display and collision detection
     beamstop_radius = 1.5
     # time it takes the gripper to fully extend or retract after the corresponding bit as been set on the tango server
-    gripper_time_ms = 2000
+    gripper_time_ms = 500
     # radius which needs to be free of obstacles around the gripper when it is down.
     # Not considering the magnets this would be the distance of the outermost part to the center of the gripper
-    # but because the magnets attract each other on a bigger radius this is the safe distance that needs to be kept between magnets so they don't snap together minus 1.5 (radius of a beamstop)
-    gripper_radius = 15
+    # but because the magnets attract each other on a bigger radius this is the safe distance that needs to be kept between magnets so they don't snap together minus radius of a beamstop
+    # this + beamstop radius must be lower than the distance between parking positions
+    gripper_radius = 14.9-beamstop_radius
     # time after which a single move is aborted and considered failed
     timeout_ms = 100000
     # distance in mm we need to move out of the limit switch to make sure it definitely turns off
@@ -84,97 +86,12 @@ class Gui:
 
 class ParkingPositions:
     parking_positions = np.array([
-        [ 10,  15],
-        [ 10,  30],
-        [ 10,  45],
-        [ 10,  60],
-        [ 10,  75],
-        [ 10,  90],
-        [ 10, 105],
-        [ 10, 120],
-        [ 10, 135],
-        [ 10, 150],
-        [ 10, 165],
-        [ 10, 180],
-        [ 10, 195],
-        [ 10, 210],
-        [ 10, 225],
-        [ 10, 240],
-        [ 10, 255],
-        [ 10, 270],
-        [ 10, 285],
-        [ 10, 300],
-        [ 10, 315],
-        [ 10, 330],
-        [ 10, 345],
-        [ 10, 360],
-        [ 10, 375],
-        [ 10, 390],
-        [ 10, 405],
-        [ 10, 420],
-        [ 10, 435],
-        [ 10, 450],
-        [ 10, 465],
-        [ 15, 480],
-        [ 30, 480],
-        [ 45, 480],
-        [ 60, 480],
-        [ 75, 480],
-        [ 90, 480],
-        [105, 480],
-        [120, 480],
-        [135, 480],
-        [150, 480],
-        [165, 480],
-        [180, 480],
-        [195, 480],
-        [210, 480],
-        [225, 480],
-        [240, 480],
-        [255, 480],
-        [270, 480],
-        [285, 480],
-        [300, 480],
-        [315, 480],
-        [330, 480],
-        [345, 480],
-        [360, 480],
-        [375, 480],
-        [390, 480],
-        [405, 480],
-        [420, 480],
-        [435, 480],
-        [450, 480],
-        [465, 480],
-        [480, 480],
-        [485,  15],
-        [485,  30],
-        [485,  45],
-        [485,  60],
-        [485,  75],
-        [485,  90],
-        [485, 105],
-        [485, 120],
-        [485, 135],
-        [485, 150],
-        [485, 165],
-        [485, 180],
-        [485, 195],
-        [485, 210],
-        [485, 225],
-        [485, 240],
-        [485, 255],
-        [485, 270],
-        [485, 285],
-        [485, 300],
-        [485, 315],
-        [485, 330],
-        [485, 345],
-        [485, 360],
-        [485, 375],
-        [485, 390],
-        [485, 405],
-        [485, 420],
-        [485, 435],
-        [485, 450],
-        [485, 465]])
+        [28.5,  10.5],
+        [28.5, 25.5],
+        [28.5, 40.5],
+        [28.5, 55.5],
+        [28.5, 70.5],
+        [28.5, 85.5],
+        [28.5, 100.5],
+        [28.5, 115.5],
+        [28.5, 130.5]])
