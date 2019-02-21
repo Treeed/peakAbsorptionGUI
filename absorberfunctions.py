@@ -1,9 +1,10 @@
 import collisiondetection
-# import pathfinder
+import pathfinder
 
 import numpy as np
 import scipy.optimize
 
+from PyQt5 import QtGui
 import logging
 
 
@@ -21,41 +22,83 @@ class BeamstopMover:
 
     def rearrange_all_beamstops(self):
         self.lg.info("calulating beamstop assignment")
-        if len(self.im_view.handles.items) > len(self.beamstop_manager.beamstops):
-            self.lg.warning("not enough beamstops available")
+        handle_positions = self.im_view.handles.get_handle_positions()
+
+        combos, spacing = self.check_spacing(handle_positions)
+        if len(spacing):
+            self.lg.warning("your handles are too close to each other. handle(s)1: %s, handle(s)2: %s, distance(s): %s movement was aborted", combos[0], combos[1], spacing)
             return
 
-        handle_positions = self.im_view.handles.get_handle_positions()
-        if handle_positions.size > 0:
+        required_moves = self.get_required_moves(handle_positions,
+                                                 self.beamstop_manager.beamstops,
+                                                 self.beamstop_manager.beamstop_parked,
+                                                 self.beamstop_manager.parking_position_occupied)
+        if not required_moves:
+            self.lg.info("nothing to move")
+            return
+
+        self.lg.info("calulating paths")
+        solved_moves, unsolved_moves = self.calc_expected_collisions(required_moves)
+        if unsolved_moves:
+            if not solved_moves:
+                self.lg.warning("no solved moves, %d unsolved move(s), aborting movement", len(unsolved_moves))
+                return
+            self.lg.info("%d solved move(s), %d unsolved move(s)", len(solved_moves), len(unsolved_moves))
+            msg = QtGui.QMessageBox
+            answer = msg.question(None,
+                                  '',
+                                  "Would you like to rearrange the beamstops that have a path?\nNo path could be found \n"
+                                  + " and\n".join("from {} to {}".format(move.beamstop_pos, move.target_pos) for move in unsolved_moves),
+                                  msg.Yes | msg.No)
+            if answer == msg.No:
+                self.lg.debug("user aborted movement because of unsolved moves. removing lines")
+                for move in solved_moves:
+                    move.remove_lines()
+                return
+        self.move_beamstops(solved_moves)
+
+    def check_spacing(self, handle_positions):
+        """checks whether all positions passed in here are more than gripper radius apart. Returns indices of handles too close to each other and the distances within the pairs"""
+        distances = calc_vec_len(handle_positions - handle_positions[:, np.newaxis])
+        # get all indices where the handles are at most gripper radius apart
+        close_handles = np.array(np.where(distances <= self.config.PeakAbsorber.gripper_radius))
+        # this list contains every distance twice (from a to b and from b to a) and one 0-distance where the element is compared to itself. Remove those.
+        close_handles = close_handles[:,close_handles[0] > close_handles[1]]
+        return close_handles, distances[tuple(close_handles)]
+
+    def get_required_moves(self, handles, beamstops, beamstop_parked, parking_position_occupied):
+        if len(handles) > len(beamstops):
+            self.lg.warning("not enough beamstops available")
+            return []
+
+        if handles.size:
             self.lg.debug("handles available, calculating assignment to beamstops")
 
-            target_combinations, target_distances = self.calc_beamstop_assignment(self.beamstop_manager.beamstops, handle_positions, self.config.PeakAbsorber.beamstop_inactive_cost * self.beamstop_manager.beamstop_parked.astype(np.bool_))
+            target_combinations, target_distances = self.calc_beamstop_assignment(beamstops, handles, self.config.PeakAbsorber.beamstop_inactive_cost * beamstop_parked.astype(np.bool_))
 
-            required_moves = [BeamstopMove(self.beamstop_manager, self.im_view, combination[0], handle_positions[combination[1]]) for combination in np.swapaxes(target_combinations, 0, 1)[target_distances > self.config.PeakAbsorber.epsilon]]
+            required_moves = [BeamstopMove(self.beamstop_manager, self.im_view, combination[0], handles[combination[1]]) for combination in np.swapaxes(target_combinations, 0, 1)[target_distances > self.config.PeakAbsorber.epsilon]]
 
-            reststops = np.delete(np.arange(self.beamstop_manager.beamstops.shape[0]), target_combinations[0])[np.delete(np.logical_not(self.beamstop_manager.beamstop_parked), target_combinations[0])]
+            reststops = np.delete(np.arange(beamstops.shape[0]), target_combinations[0])[np.delete(np.logical_not(beamstop_parked), target_combinations[0])]
         else:
             self.lg.debug("no handles available")
-            reststops = np.arange(len(self.beamstop_manager.beamstops))[np.logical_not(self.beamstop_manager.beamstop_parked)]
+            reststops = np.arange(len(beamstops))[np.logical_not(beamstop_parked)]
             required_moves = []
 
-        if reststops.size > 0:
+        if reststops.size:
             self.lg.debug("unused beamstops available calculating cleanup")
-            free_parking_position_nrs = np.logical_not(self.beamstop_manager.parking_position_occupied).nonzero()[0]
+            free_parking_position_nrs = np.logical_not(parking_position_occupied).nonzero()[0]
 
             if reststops.size > free_parking_position_nrs.size:
                 self.lg.warning("not enough parking space available: %d reststops but only %d parking spots", reststops.size, free_parking_position_nrs.size)
-                return
+                return []
 
-            rest_combinations, _ = self.calc_beamstop_assignment(self.beamstop_manager.beamstops[reststops], self.config.ParkingPositions.parking_positions[free_parking_position_nrs])
+            rest_combinations, _ = self.calc_beamstop_assignment(beamstops[reststops], self.config.ParkingPositions.parking_positions[free_parking_position_nrs])
             required_moves.extend(BeamstopMove(self.beamstop_manager, self.im_view, reststops[combination[0]], self.config.ParkingPositions.parking_positions[free_parking_position_nrs[combination[1]]]) for combination in np.swapaxes(rest_combinations, 0, 1))
+        return required_moves
 
-        self.calc_expected_collisions(required_moves)
-        self.move_beamstops(required_moves)
-
-    # returns combinations of [beamstops, target_positions] and the distances between the two
     @staticmethod
     def calc_beamstop_assignment(beamstops, target_positions, penalties=None):
+        """returns combinations of [beamstops, target_positions] and the distances between the two where every pair is chosen so the total distance is as short as possible"""
         if not beamstops.size or not target_positions.size:
             return np.array([]), np.array([])
 
@@ -70,20 +113,46 @@ class BeamstopMover:
 
     def calc_expected_collisions(self, moves):
         """
-        Modifies the moves in the list to include paths which avoid collisions if necessary
+        Sorts the moves passed in into one list of unsolvable moves and one list of moves with paths in the order they should be done in. Also adds lines for every solved move
 
-        Simulates the expected constellation of beamstops after every move, then runs collision detection
-        and adds the calculated intermediate stops to the moves that would collide with a beamstop otherwise.
+        Simulates the expected constellation of beamstops after every move, then runs collision detection which adds the path if there is one
+        Reruns moves for which path finding failed until they either all have a path or none of the moves in the last iteration could find a path
+        :moves: the moves to find a path for
+        :returns (solved moves: moves with paths in order of execution, unsolved moves: moves for which no path could be found
         """
+        unsolved_moves = moves.copy()
+        solved_moves = []
         simulation_beamstops = self.beamstop_manager.beamstops.copy()
-        collision_detector = collisiondetection.CollisionDetection()
-        for move in moves:
-            # move.path = pathfinder.find_path(move.beamstop_pos, move.target_pos, np.delete(simulation_beamstops, move.beamstop_nr, 0), 11.5, [500, 500])
-            # calculate beamstop list which excludes the currently driven beamstop and has [x, y, distance_to_current] instead of just [x, y]
-            collision_bs_list = np.append(np.delete(simulation_beamstops, move.beamstop_nr, 0), calc_vec_len(np.delete(simulation_beamstops, move.beamstop_nr, 0)-move.beamstop_pos)[:, np.newaxis], 1)
-            move.path = collision_detector.find_path(move.target_pos, move.beamstop_pos, collision_bs_list, self.config.PeakAbsorber.gripper_radius + self.config.PeakAbsorber.beamstop_radius, max_multi=30)
-            move.add_line()
-            simulation_beamstops[move.beamstop_nr] = move.target_pos
+        progress = True
+        while unsolved_moves and progress:
+            progress = False
+            for move in unsolved_moves.copy():
+                if not self.calc_path(move, simulation_beamstops):
+                    continue
+                progress = True
+                unsolved_moves.remove(move)
+                solved_moves.append(move)
+                move.add_line()
+                simulation_beamstops[move.beamstop_nr] = move.target_pos
+        return solved_moves, unsolved_moves
+
+    def calc_path(self, move, beamstops):
+        """
+        adds a path to use to a move if there is one
+        :param move: move to add path to
+        :param beamstops: beamstops to not collide with
+        :returns: bool whether path was found or not
+        """
+        # calculate beamstop list which excludes the currently driven beamstop and has [x, y, distance_to_current] instead of just [x, y]
+        collision_bs_list = np.append(np.delete(beamstops, move.beamstop_nr, 0), calc_vec_len(np.delete(beamstops, move.beamstop_nr, 0) - move.beamstop_pos)[:, np.newaxis], 1)
+        try:
+            move.path = np.array(collisiondetection.find_path(move.target_pos, move.beamstop_pos, collision_bs_list, self.config.PeakAbsorber.gripper_radius + self.config.PeakAbsorber.beamstop_radius, max_multi=30))
+            if np.any([move.path[:, 0] < 0, move.path[:, 1] > 0, move.path[:, 0] > self.config.PeakAbsorber.limits[0], move.path[:, 1] > self.config.PeakAbsorber.limits[1]]):
+                raise collisiondetection.NoSolutionError("point was outside limits")
+        except (collisiondetection.NoSolutionError, ArithmeticError) as error:
+            self.lg.debug("using fallback algorithm because: %s", str(error))
+            move.path = pathfinder.find_path(move.beamstop_pos, move.target_pos, np.delete(beamstops, move.beamstop_nr, 0), self.config.PeakAbsorber.gripper_radius + self.config.PeakAbsorber.beamstop_radius, self.config.PeakAbsorber.limits)
+        return move.path is not None
 
     def move_beamstops(self, required_moves):
         # TODO: find best path
@@ -190,7 +259,7 @@ class BeamstopMove:
 
         self.beamstop_circle = self.beamstop_manager.beamstop_circles[self.beamstop_nr]
         self.beamstop_pos = self.beamstop_manager.beamstops[self.beamstop_nr]
-        self.path = [target_pos]
+        self.path = None
         self.trajectory_line = None
 
     def add_line(self):

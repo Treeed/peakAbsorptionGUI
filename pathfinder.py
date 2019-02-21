@@ -16,6 +16,7 @@ def find_path(starting_point, final_destination, obstacles, radius, absorber_lim
     TODO: 1. performance is very poor due to the principle of the algorithm but it might be possible to make some improvements
     TODO: 2. in an edge case where there is space between two circles but the corners of a corresponding rectangle intersects
     TODO:       with the other circle the path may not be found because the circumvention around the rectangle will go through the nearby circle. One could increase to hexa/octagons or higher if needed
+    TODO: 3. to get a valid path it needs to be away from the forbidden areas and not touch it. How far should that be? See Todo below
 
     :param starting_point: point from which the path should start. There may not be an obstacle within "radius" of this point. Format [x, y]
     :param final_destination: point to which the path should go. There may not be an obstacle within "radius" of this point. Format [x, y]
@@ -87,26 +88,45 @@ def find_obstacle_corners(line, obstacles, radius, absorber_limits):
     """
     Checks which obstacles are crossed by the line and returns corners of the squares around them
 
-    Obstacles are circles with the center at their point and a radius of radius.
-    The output contains all square corners inside the specified absorber limits and above zero.
-
-    @:param line: the line which should be checked in the format [[startx, starty], [endx, endy]]
-    @:param obstacles: points of the obstacles in the format [[obstacle1x, obstacle1y], [obstacle2x, obstacle2y],... ]
-    @:param radius: the radius of the obstacles, single scalar value
-    @:param absorber_limits: limits of the absorber in x and y direction as [limitx, limity]
+    :param line: the line which should be checked in the format [[startx, starty], [endx, endy]]
+    :param obstacles: points of the obstacles in the format [[obstacle1x, obstacle1y], [obstacle2x, obstacle2y],... ]
+    :param radius: the radius of the obstacles, single scalar value
+    :param absorber_limits: limits of the absorber in x and y direction as [limitx, limity]
+    :return corners of the squares around the circles that intersect with the line
     """
-    # first check for intersections after https://codereview.stackexchange.com/questions/86421/line-segment-to-circle-collision-algorithm
-    line_vector = line[1] - line[0]
-    a = np.dot(line_vector, line_vector)
-    b = 2 * np.dot(line[0] - obstacles, line_vector)
-    c = np.dot(line[0], line[0]) + (obstacles * obstacles).sum(1) - 2 * np.dot(obstacles, line[0]) - radius ** 2
-    sqrt_disc = np.sqrt(b ** 2 - 4 * a * c)
-    t1 = (-b + sqrt_disc) / (2 * a)
-    t2 = (-b - sqrt_disc) / (2 * a)
-    tt = np.any([np.all([0 <= t1, t1 <= 1], axis=0), np.all([0 <= t2, t2 <= 1], axis=0)], axis=0)
-    in_the_way = obstacles[tt]
+    in_the_way = obstacles[find_collisions(line, obstacles, radius)]
     # compile a list of corners of a square around the circle with edge length 2radius
-    radius += .2  # TODO: find solution for this
+    radius = radius + .01  # TODO: find solution for this
     obstacle_corners = np.concatenate([in_the_way+[radius, radius], in_the_way+[radius, -radius], in_the_way+[-radius, radius], in_the_way+[-radius, -radius]])
     # return all corners that are within the peakabsorber limits
     return obstacle_corners[np.all([obstacle_corners[:, 0] > 0, obstacle_corners[:, 1] > 0, obstacle_corners[:, 0] < absorber_limits[0], obstacle_corners[:, 1] < absorber_limits[1]], axis=0)]
+
+
+def find_collisions(line, obstacles, radius):
+    """
+    Checks for obstacles crossed by the given lines
+    based on https://codereview.stackexchange.com/questions/86421/line-segment-to-circle-collision-algorithm
+
+    Obstacles are circles with the center at their point and a radius of radius.
+    The output contains all square corners inside the specified absorber limits and above zero.
+    :param line: the line which should be checked in the format [[startx, starty], [endx, endy]]
+    :param obstacles: points of the obstacles in the format [[obstacle1x, obstacle1y], [obstacle2x, obstacle2y],... ]
+    :param radius: the radius of the obstacles, single scalar value
+    :return: list with a bool for each obstacle which is true for obstacles that are crossed by or touching the line and false for the others
+    """
+    line_vector = line[1] - line[0]
+    # calculate coefficients for quadratic equation
+    a = np.dot(line_vector, line_vector)
+    b = 2 * np.dot(line[0] - obstacles, line_vector)
+    c = np.dot(line[0], line[0]) + (obstacles * obstacles).sum(1) - 2 * np.dot(obstacles, line[0]) - radius ** 2
+    # disable warnings for invalid operations that prodduce NaNs as this is entirely normal here
+    np_error_setting = np.seterr(invalid="ignore")
+    # calculate portion inside the square root. If there are no solutions (numpy returns NaN) the vector doesn't hit the circle, even when extended to an infinte line
+    sqrt_discriminant = np.sqrt(b ** 2 - 4 * a * c)
+    # calculate solutions
+    solution1 = (-b + sqrt_discriminant) / (2 * a)
+    solution2 = (-b - sqrt_discriminant) / (2 * a)
+    # if either of these is between 0 and 1 the line segment intersects with (or touches) the circle. This returns a list of bools and uses this to index the colliding obstacles
+    in_the_way = np.any([np.all([0 <= solution1, solution1 <= 1], axis=0), np.all([0 <= solution2, solution2 <= 1], axis=0)], axis=0)
+    np.seterr(invalid=np_error_setting["invalid"])
+    return in_the_way
