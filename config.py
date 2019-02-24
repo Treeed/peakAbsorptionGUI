@@ -27,15 +27,15 @@ class PeakAbsorber:
     # maximum acceleration to be set on the motors in steps/s^2
     # the acceleration needs to be set by the gui to match the motor movements to each other.
     # Also make sure to set the Baserate to zero on the tango server or this will not work and collisions between beamstops may occur because the exact trajectory is not known by the software
-    max_acceleration = 10000
+    max_acceleration = 100000
     # distance a beamstop moves back on its trajectory after being released.
     # This is mostly relevant because of the lower magnet being dragged behind and attracting the top magnet back
-    backlash = 0.5
+    backlash = 1.5
 
     # positive limits of the drive mechanism (negative limits are always zero)
     limits = np.array([500, 495])
     # radius of one beamstop for display and collision detection
-    beamstop_radius = 1.5
+    beamstop_radius = 2.5
     # time it takes the gripper to fully extend or retract after the corresponding bit as been set on the tango server
     gripper_time_ms = 500
     # this is either:
@@ -63,13 +63,12 @@ class PeakAbsorber:
 
 class Detector:
     # size of the active area of the detector. This is only used for the box shown in the gui
-    active_area = np.array([200, 200])
+    active_area = np.array([409.6, 409.6])
     # position of the lower left corner of the detector relative to the minimum position of the drive mechanism
-    detector_origin = np.array([150, 100])
+    detector_origin = np.array([65, -10])
     # size of one pixel in x and y
     # this is used to scale the image, so picture-resolution*pixel_size should match the "active area"
-    # the value is stored in float64, feel free to put some decimal places here
-    pixel_size = np.array([0.09765625, 0.09765625])
+    pixel_size = np.array([0.200, 0.200])
     # manipulations to apply to the image in order. Any number of manipulations can be inserted. Available are "rot90" "rot180" "rot270" "mir_horiz" "mir_vert"
     image_manipulations = []
 
@@ -89,13 +88,4 @@ class Gui:
 
 
 class ParkingPositions:
-    parking_positions = np.array([
-        [28.5,  10.5],
-        [28.5, 25.5],
-        [28.5, 40.5],
-        [28.5, 55.5],
-        [28.5, 70.5],
-        [28.5, 85.5],
-        [28.5, 100.5],
-        [28.5, 115.5],
-        [28.5, 130.5]])
+    parking_positions = np.array([[28.5, 10.5 + 15 * beamstop_nr] for beamstop_nr in range(25)])
