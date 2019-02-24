@@ -145,6 +145,8 @@ class PeakAbsorberHardware:
         self.lg.debug("moving to cw limits")
         self._motor_x.slewrate = self.config.PeakAbsorber.slewrates[slewrate][1]
         self._motor_y.slewrate = self.config.PeakAbsorber.slewrates[slewrate][1]
+        self._motor_x.acceleration = self.config.PeakAbsorber.max_acceleration
+        self._motor_y.acceleration = self.config.PeakAbsorber.max_acceleration
 
         if self.config.PeakAbsorber.zero_limit[0] == "cw":
             self._motor_x.moveToCwLimit()
