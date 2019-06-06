@@ -39,6 +39,9 @@ class PeakAbsorberHardware:
         """ moves to and over a point by [backlash]mm, then moves back to the point"""
         cur_pos = np.array([self._motor_x.position, self._motor_y.position])
         move_vector = pos-cur_pos
+        if np.sum(move_vector) == 0:
+            self.lg.debug("we already are at the target. returning.")
+            return
         unit_move = move_vector/absorberfunctions.calc_vec_len(move_vector)
         backlash_target = unit_move*self.config.PeakAbsorber.backlash+pos
 
