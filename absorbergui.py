@@ -28,7 +28,11 @@ class MainWindow(QtWidgets.QMainWindow):
         self.show()
 
         self.image_view = self.logsplitter.image_view
-        self.hardware_buttons = [self.logsplitter.button_bar.re_arrange, self.logsplitter.button_bar.home, self.logsplitter.button_bar.save_state]
+        self.hardware_buttons = [self.logsplitter.button_bar.re_arrange,
+                                 self.logsplitter.button_bar.home,
+                                 self.logsplitter.button_bar.save_state,
+                                 self.logsplitter.button_bar.pos_viewer.gripper_viewer,
+                                 self.logsplitter.button_bar.pos_viewer.go_button]
 
         self.lg.info("initializing absorber control")
         self.absorber_hardware = hardware.PeakAbsorberHardware(config)
@@ -47,6 +51,11 @@ class MainWindow(QtWidgets.QMainWindow):
         self.logsplitter.button_bar.save_state.clicked.connect(self.file_handler.save_state_gui)
         self.logsplitter.button_bar.load_state.clicked.connect(self.file_handler.load_state_gui)
 
+        self.absorber_hardware.updater.posChanged.connect(self.logsplitter.button_bar.pos_viewer.set_pos_value)
+        self.absorber_hardware.updater.gripperChanged.connect(self.logsplitter.button_bar.pos_viewer.set_gripper_value)
+        self.logsplitter.button_bar.pos_viewer.go_button.clicked.connect(self.move_to_manual)
+        self.logsplitter.button_bar.pos_viewer.gripper_viewer.clicked.connect(self.move_gripper_manual)
+
     def rearrange(self):
         with DisableButtons(self.hardware_buttons):
             self.beamstop_mover.rearrange_all_beamstops()
@@ -55,6 +64,18 @@ class MainWindow(QtWidgets.QMainWindow):
         with DisableButtons(self.hardware_buttons):
             self.absorber_hardware.home()
 
+    def move_gripper_manual(self):
+        with DisableButtons(self.hardware_buttons):
+            txt = self.logsplitter.button_bar.pos_viewer.gripper_viewer.text()
+            if txt == "up":
+                self.absorber_hardware.move_gripper(1)
+            elif txt == "down":
+                self.absorber_hardware.move_gripper(0)
+
+    def move_to_manual(self):
+        with DisableButtons(self.hardware_buttons):
+            self.absorber_hardware.move_to_backlash((self.logsplitter.button_bar.pos_viewer.posX_viewer.value(), self.logsplitter.button_bar.pos_viewer.posY_viewer.value()))
+
 
 class LogSplitter(QtWidgets.QSplitter):
     def __init__(self, config, status_monitor):
@@ -62,7 +83,7 @@ class LogSplitter(QtWidgets.QSplitter):
         self.setOrientation(QtCore.Qt.Vertical)
 
         self.buttonsplitter = QtWidgets.QSplitter()
-        self.button_bar = ButtonBar()
+        self.button_bar = ButtonBar(config)
         self.image_view = ImageDrawer(config)
         self.status_monitor = status_monitor
 
@@ -78,7 +99,7 @@ class LogSplitter(QtWidgets.QSplitter):
 
 
 class ButtonBar(QtWidgets.QWidget):
-    def __init__(self):
+    def __init__(self, config):
         super(ButtonBar, self).__init__()
         self.new_handle = QtWidgets.QPushButton("new handle")
         self.open_file = QtWidgets.QPushButton("open image")
@@ -87,6 +108,7 @@ class ButtonBar(QtWidgets.QWidget):
         self.home = QtWidgets.QPushButton("homing")
         self.save_state = QtWidgets.QPushButton("save current positions")
         self.load_state = QtWidgets.QPushButton("load positions")
+        self.pos_viewer = PositionViewer(config)
 
         self._layout = QtWidgets.QVBoxLayout()
         self._layout.addStretch()
@@ -97,9 +119,63 @@ class ButtonBar(QtWidgets.QWidget):
         self._layout.addWidget(self.re_arrange)
         self._layout.addWidget(self.save_state)
         self._layout.addWidget(self.load_state)
+        self._layout.addWidget(self.pos_viewer)
         self._layout.addStretch()
 
         self.setLayout(self._layout)
+
+
+class PositionViewer(QtWidgets.QGroupBox):
+    def __init__(self, config):
+        super(PositionViewer, self).__init__()
+
+        self.setTitle("Status:")
+
+        self.posX_label = QtWidgets.QLabel("posX:")
+        self.posX_label.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
+        self.posX_viewer = QtWidgets.QDoubleSpinBox()
+        self.posX_viewer.setRange(0, config.PeakAbsorber.limits[0])
+        self.posY_label = QtWidgets.QLabel("posY:")
+        self.posY_label.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
+        self.posY_viewer = QtWidgets.QDoubleSpinBox()
+        self.posY_viewer.setRange(0, config.PeakAbsorber.limits[1])
+        self.go_button = QtWidgets.QPushButton("go")
+        self.gripper_label = QtWidgets.QLabel("gripper:")
+        self.gripper_label.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
+        self.gripper_viewer = QtWidgets.QPushButton()
+        self.set_gripper_value(0)
+
+        self._posX_layout = QtWidgets.QHBoxLayout()
+        self._posX_layout.addWidget(self.posX_label)
+        self._posX_layout.addWidget(self.posX_viewer)
+        self._posY_layout = QtWidgets.QHBoxLayout()
+        self._posY_layout.addWidget(self.posY_label)
+        self._posY_layout.addWidget(self.posY_viewer)
+        self._gripper_layout = QtWidgets.QHBoxLayout()
+        self._gripper_layout.addWidget(self.gripper_label)
+        self._gripper_layout.addWidget(self.gripper_viewer)
+
+        self._layout = QtWidgets.QVBoxLayout()
+        self._layout.addLayout(self._posX_layout)
+        self._layout.addLayout(self._posY_layout)
+        self._layout.addWidget(self.go_button)
+        self._layout.addLayout(self._gripper_layout)
+        self.setLayout(self._layout)
+
+    def set_pos_value(self, pos):
+        self.posX_viewer.setValue(pos[0])
+        self.posY_viewer.setValue(pos[1])
+
+    def set_gripper_value(self, value):
+        if value == 1:
+            self.gripper_viewer.setText("down")
+            self.gripper_viewer.setDisabled(0)
+        elif value == 0:
+            self.gripper_viewer.setText("up")
+            self.gripper_viewer.setDisabled(0)
+        else:
+            self.gripper_viewer.setText("moving")
+            self.gripper_viewer.setDisabled(1)
 
 
 class DisableButtons:
