@@ -37,8 +37,11 @@ class MainWindow(QtWidgets.QMainWindow):
         self.lg.info("initializing absorber control")
         self.absorber_hardware = hardware.PeakAbsorberHardware(config)
         self.beamstop_manager = absorberfunctions.BeamstopManager(config, self.image_view)
+        self.hardware_updater = hardware.MovementUpdater(config, self.absorber_hardware)
         self.beamstop_mover = absorberfunctions.BeamstopMover(config, self.image_view, self.absorber_hardware, self.beamstop_manager)
         self.file_handler = fileio.FileHandler(config, self.image_view, self, self.beamstop_manager, self.beamstop_mover)
+
+        self.absorber_hardware.updater = self.hardware_updater
 
         self.connect_events()
 
@@ -51,8 +54,10 @@ class MainWindow(QtWidgets.QMainWindow):
         self.logsplitter.button_bar.save_state.clicked.connect(self.file_handler.save_state_gui)
         self.logsplitter.button_bar.load_state.clicked.connect(self.file_handler.load_state_gui)
 
-        self.absorber_hardware.updater.posChanged.connect(self.logsplitter.button_bar.pos_viewer.set_pos_value)
-        self.absorber_hardware.updater.gripperEstimateChanged.connect(self.logsplitter.button_bar.pos_viewer.set_gripper_value)
+        self.hardware_updater.posChanged.connect(self.image_view.crosshair.set_crosshair_pos)
+        self.hardware_updater.posChanged.connect(self.logsplitter.button_bar.pos_viewer.set_pos_value)
+        self.hardware_updater.gripperEstimateChanged.connect(self.image_view.crosshair.set_crosshair_color)
+        self.hardware_updater.gripperEstimateChanged.connect(self.logsplitter.button_bar.pos_viewer.set_gripper_value)
         self.logsplitter.button_bar.pos_viewer.go_button.clicked.connect(self.move_to_manual)
         self.logsplitter.button_bar.pos_viewer.gripper_viewer.clicked.connect(self.move_gripper_manual)
 

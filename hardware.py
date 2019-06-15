@@ -13,7 +13,7 @@ class PeakAbsorberHardware:
         self._motor_x = tango.DeviceProxy(self.config.PeakAbsorber.tango_server + self.config.PeakAbsorber.motor_x_path)
         self._motor_y = tango.DeviceProxy(self.config.PeakAbsorber.tango_server + self.config.PeakAbsorber.motor_y_path)
 
-        self.updater = MovementUpdater(config, self)
+        self.updater = None
         self.lg = logging.getLogger("main.hardware.hardware")
 
     def move_beamstop(self, move):
