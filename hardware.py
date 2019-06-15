@@ -50,6 +50,9 @@ class PeakAbsorberHardware:
     def move_to(self, pos, slewrate="beamstop"):
         self.lg.debug("moving to %s with %s speed", str(pos), slewrate)
         # TODO: handle errors
+        if not self.updater.motors_ready:
+            raise HardwareError("move", "move requested but motors not ready")
+
         distance = np.abs([self._motor_x.position - pos[0], self._motor_y.position - pos[1]])
         travel_distance = absorberfunctions.calc_vec_len([distance[0], distance[1]])
         if travel_distance < self.config.PeakAbsorber.epsilon:
@@ -197,10 +200,10 @@ class MovementUpdater(QObject):
         self.absorber_hardware = absorber_hardware
         self.lg = logging.getLogger("main.hardware.movementupdater")
 
-        self.status = {"pos": None, "gripper_pos": None, "motor_x_state": None, "motor_y_state": None, "gripper_state": None}
+        self.status = {"pos": None, "gripper_pos": 0, "motor_x_state": None, "motor_y_state": None, "gripper_state": None}
+        self.motors_ready = False
         self.motor_move_started = False
         self.current_move = None
-        self.gripper_pos = 0
         self.estimated_real_gripper_pos = 0
 
         self._timer = QTimer()
@@ -212,45 +215,62 @@ class MovementUpdater(QObject):
 
     def update(self):
         new_status = self.absorber_hardware.get_hardware_status()
-        if self.motor_move_started and new_status["motor_x_state"] != tango.DevState.MOVING and new_status["motor_y_state"] != tango.DevState.MOVING:
+
+        new_motors_ready = new_status["motor_x_state"] == tango.DevState.ON and new_status["motor_y_state"] == tango.DevState.ON
+
+        if self.motor_move_started and new_motors_ready:
             self.moveFinished.emit()
-            self.set_idle()
+            self.motor_move_started = False
+
+        if self.motors_ready != new_motors_ready:
+            if new_motors_ready:
+                self.set_polling_rate("idle")
+            else:
+                self.set_polling_rate("moving")
+
         if self.current_move is not None:
             self.current_move.update_pos(new_status["pos"])
-        if self.status != new_status:
+
+        if self.status["pos"] != new_status["pos"]:
             self.posChanged.emit(new_status["pos"])
-            self.status = new_status
-        if self.gripper_pos != new_status["gripper_pos"]:
-            self.gripper_pos = new_status["gripper_pos"]
-            self.estimate_gripper_pos()
+
+        if self.status["gripper_pos"] != new_status["gripper_pos"]:
+            self.estimate_gripper_pos(new_status["gripper_pos"])
+
+        self.motors_ready = new_motors_ready
+        self.status = new_status
+
+    def set_polling_rate(self, rate):
+        if rate == "moving":
+            polling_rate = self.config.PeakAbsorber.moving_polling_rate
+        elif rate == "idle":
+            polling_rate = self.config.PeakAbsorber.idle_polling_rate
+        else:
+            ValueError("not a polling rate")
+        self._timer.setInterval(1000 / polling_rate)
 
     def set_current_move(self, move):
         self.update()
         self.current_move = move
 
-    def set_idle(self):
-        self.motor_move_started = False
-        self._timer.setInterval(1000 / self.config.PeakAbsorber.idle_polling_rate)
-
     def set_motor_moving(self):
         self.motor_move_started = True
-        self._timer.setInterval(1000 / self.config.PeakAbsorber.moving_polling_rate)
+        self.set_polling_rate("moving")
 
-    def estimate_gripper_pos(self):
+    def estimate_gripper_pos(self, new_gripper_pos):
         self.lg.debug("gripper changed state")
-        self.estimated_real_gripper_pos = float(not self.gripper_pos)
+        self.estimated_real_gripper_pos = float(self.status["gripper_pos"])
         self._gripper_timer.start(1000 / self.config.PeakAbsorber.moving_polling_rate)
 
     def update_gripper_pos(self):
-        if self.gripper_pos:
+        if self.status["gripper_pos"]:
             self.estimated_real_gripper_pos += 1/self.config.PeakAbsorber.moving_polling_rate/(self.config.PeakAbsorber.gripper_time_ms/1000)
-        elif not self.gripper_pos:
+        elif not self.status["gripper_pos"]:
             self.estimated_real_gripper_pos -= 1/self.config.PeakAbsorber.moving_polling_rate/(self.config.PeakAbsorber.gripper_time_ms/1000)
 
         if self.estimated_real_gripper_pos >= 1 or self.estimated_real_gripper_pos <= 0:
             self._gripper_timer.stop()
-            self.set_idle()
-            self.estimated_real_gripper_pos = self.gripper_pos
+            self.estimated_real_gripper_pos = self.status["gripper_pos"]
             self.gripperFinished.emit()
 
         self.gripperEstimateChanged.emit(self.estimated_real_gripper_pos)
