@@ -51,10 +51,11 @@ class PeakAbsorber:
     # motor direction in which the coordinate values decrease / side on which the limit switch that represents the origin is for axes [x, y]
     # each axis can be "cw" or "ccw"
     zero_limit = ["ccw", "ccw"]
-    # distance error above which you can't catch a beamstop anymore
-    max_distance_error = 1
-    # distance below which differences are considered a floating point error
-    epsilon = 0.0001
+    # distance error above which you can't catch a beamstop anymore / below which a beamstop is succesfully centered in the gripper
+    max_distance_error = 0.5
+    # distance below which differences are considered insignificant and position of a beamstop does not have to be corrected.
+    # must be larger than the increments the tango server is counting in
+    epsilon = 0.1
     # virtual penalty distance added to parked beamstops to avoid moving them into the active area
     # this is used during the beamstop assignment to make sure all active beamstops are used up before parked ones get moved in
     # set this to the maximum possible movement distance of the peak absorber

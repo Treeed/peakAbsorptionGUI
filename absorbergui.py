@@ -37,7 +37,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.lg.info("initializing absorber control")
         self.absorber_hardware = hardware.PeakAbsorberHardware(config)
         self.beamstop_manager = absorberfunctions.BeamstopManager(config, self.image_view)
-        self.hardware_updater = hardware.MovementUpdater(config, self.absorber_hardware)
+        self.hardware_updater = hardware.MovementUpdater(config, self.absorber_hardware, self.beamstop_manager)
         self.beamstop_mover = absorberfunctions.BeamstopMover(config, self.image_view, self.absorber_hardware, self.beamstop_manager)
         self.file_handler = fileio.FileHandler(config, self.image_view, self, self.beamstop_manager, self.beamstop_mover)
 
@@ -56,6 +56,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.hardware_updater.posChanged.connect(self.image_view.crosshair.set_crosshair_pos)
         self.hardware_updater.posChanged.connect(self.logsplitter.button_bar.pos_viewer.set_pos_value)
+        self.hardware_updater.posChanged.connect(self.image_view.beamstop_circles.move_circle)
         self.hardware_updater.gripperEstimateChanged.connect(self.image_view.crosshair.set_crosshair_color)
         self.hardware_updater.gripperEstimateChanged.connect(self.logsplitter.button_bar.pos_viewer.set_gripper_value)
         self.logsplitter.button_bar.pos_viewer.go_button.clicked.connect(self.move_to_manual)
@@ -278,8 +279,10 @@ class HandleHandler(GraphicsHandler):
 class BeamstopCircleHandler(GraphicsHandler):
     name = "beamstop circle"
 
-    def move_circle(self, circle,  pos):
-        circle.setCenter(self.machine_to_img_coord(pos))
+    def move_circle(self, pos, circle_nr):
+        """designed to be called by posChanged signal from updater"""
+        if circle_nr[0] is not None:
+            self.items[circle_nr[0]].setCenter(self.machine_to_img_coord(pos))
 
     def add_circle(self, pos):
         circle = pyqtgraphutils.BeamstopCircle(self.machine_to_img_coord(pos), self.machine_to_img_scale(self.config.PeakAbsorber.beamstop_radius)[0], self.config.Gui.color_beamstops)

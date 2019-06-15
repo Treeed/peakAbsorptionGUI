@@ -20,11 +20,9 @@ class PeakAbsorberHardware:
         self.lg.info("moving beamstop %d to %s", move.beamstop_nr, str(move.target_pos))
         self.move_to(move.beamstop_pos, "travel")
         self.move_gripper(1)
-        self.updater.set_current_move(move)
         for pos in move.path[:-1]:
             self.move_to(pos, "beamstop")
         self.move_to_backlash(move.path[-1])
-        self.updater.set_current_move(None)
         self.move_gripper(0)
 
         move.finish_move()
@@ -189,22 +187,30 @@ class PeakAbsorberHardware:
 
 
 class MovementUpdater(QObject):
+    # emitted when set_motor_moving was called before and the motors are idle (again)
     moveFinished = pyqtSignal()
+    # emitted when the set period of time for the gripper movement estimate was elapsed
     gripperFinished = pyqtSignal()
-    posChanged = pyqtSignal(tuple)
+    # emitted when the position changed.
+    # the first tuple contains the position (x,y)
+    # the second tuple contains one element which is either the beamstop number if there is a beamstop currently grabbed or None if not
+    posChanged = pyqtSignal(tuple, tuple)
+    # emitted mutliple times after the position of the gripper changed each time the estimate for the real gripper posiiton changes
+    # the float is the estimated gripper position between 0 and 1
     gripperEstimateChanged = pyqtSignal(float)
 
-    def __init__(self, config, absorber_hardware):
+    def __init__(self, config, absorber_hardware, beamstop_manager):
         super().__init__()
         self.config = config
         self.absorber_hardware = absorber_hardware
+        self.beamstop_manager = beamstop_manager
         self.lg = logging.getLogger("main.hardware.movementupdater")
 
         self.status = {"pos": None, "gripper_pos": 0, "motor_x_state": None, "motor_y_state": None, "gripper_state": None}
         self.motors_ready = False
         self.motor_move_started = False
-        self.current_move = None
         self.estimated_real_gripper_pos = 0
+        self.grabbed_beamstop_nr = None
 
         self._timer = QTimer()
         self._timer.timeout.connect(self.update)
@@ -228,14 +234,11 @@ class MovementUpdater(QObject):
             else:
                 self.set_polling_rate("moving")
 
-        if self.current_move is not None:
-            self.current_move.update_pos(new_status["pos"])
-
         if self.status["pos"] != new_status["pos"]:
-            self.posChanged.emit(new_status["pos"])
+            self.posChanged.emit(new_status["pos"], (self.grabbed_beamstop_nr, ))
 
         if self.status["gripper_pos"] != new_status["gripper_pos"]:
-            self.estimate_gripper_pos(new_status["gripper_pos"])
+            self._change_gripper(new_status["gripper_pos"])
 
         self.motors_ready = new_motors_ready
         self.status = new_status
@@ -249,16 +252,24 @@ class MovementUpdater(QObject):
             ValueError("not a polling rate")
         self._timer.setInterval(1000 / polling_rate)
 
-    def set_current_move(self, move):
-        self.update()
-        self.current_move = move
-
     def set_motor_moving(self):
         self.motor_move_started = True
         self.set_polling_rate("moving")
 
-    def estimate_gripper_pos(self, new_gripper_pos):
+    def _change_gripper(self, new_gripper_pos):
         self.lg.debug("gripper changed state")
+        if new_gripper_pos == 1:
+            grabbed_beamstop_nr = np.argwhere(absorberfunctions.calc_vec_len(self.beamstop_manager.beamstops - self.status["pos"]) < self.config.PeakAbsorber.max_distance_error)
+            if grabbed_beamstop_nr:
+                self.grabbed_beamstop_nr = grabbed_beamstop_nr[0][0]
+            else:
+                self.grabbed_beamstop_nr = None
+        if new_gripper_pos == 0:
+            if self.grabbed_beamstop_nr:
+                self.beamstop_manager.move(self.grabbed_beamstop_nr, self.status["pos"])
+            self.grabbed_beamstop_nr = None
+
+        # start estimating the real gripper pos
         self.estimated_real_gripper_pos = float(self.status["gripper_pos"])
         self._gripper_timer.start(1000 / self.config.PeakAbsorber.moving_polling_rate)
 

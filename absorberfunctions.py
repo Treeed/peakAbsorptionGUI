@@ -256,7 +256,6 @@ class BeamstopMove:
         self.beamstop_manager = beamstop_manager
         self.im_view = im_view
 
-        self.beamstop_circle = self.beamstop_manager.beamstop_circles[self.beamstop_nr]
         self.beamstop_pos = self.beamstop_manager.beamstops[self.beamstop_nr]
         self.path = None
         self.trajectory_line = None
@@ -268,11 +267,7 @@ class BeamstopMove:
         self.im_view.trajectory_lines.remove_item(self.trajectory_line)
 
     def finish_move(self):
-        self.beamstop_manager.move(self.beamstop_nr, self.target_pos)
         self.remove_lines()
-
-    def update_pos(self, pos):
-        self.im_view.beamstop_circles.move_circle(self.beamstop_circle, pos)
 
 
 class ConfigError(Exception):
