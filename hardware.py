@@ -85,9 +85,13 @@ class PeakAbsorberHardware:
         self.wait(self.config.PeakAbsorber.timeout_ms, self.updater.moveFinished)
 
     def get_hardware_status(self):
-        pos = self._motor_x.position, self._motor_y.position, self._gripper.value
-        state = self._motor_x.state(), self._motor_y.state(), self._gripper.state()
-        return pos, state
+        status = {}
+        status["pos"] = self._motor_x.position, self._motor_y.position
+        status["gripper_pos"] = self._gripper.value
+        status["motor_x_state"] = self._motor_x.state()
+        status["motor_y_state"] = self._motor_y.state()
+        status["gripper_state"] = self._gripper.state()
+        return status
 
     def go_home(self):
         self.move_to([0, 0], "travel")
@@ -102,17 +106,17 @@ class PeakAbsorberHardware:
         """
         self.lg.info("homing translations")
         self.move_to_limits("homing")
-        correction = np.array(self.get_hardware_status()[0][0:2])
+        correction = np.array(self.get_hardware_status()["pos"])
         self.zero_steps()
         self.move_to(self.config.PeakAbsorber.limit_switch_max_hysterisis, "travel")
         self.check_limits_disengaged()
         if precise:
             self.move_to_limits("homing_precise")
-            correction += np.array(self.get_hardware_status()[0][0:2])
+            correction += np.array(self.get_hardware_status()["pos"])
             self.zero_steps()
             self.move_to(self.config.PeakAbsorber.limit_switch_max_hysterisis, "travel")
             self.check_limits_disengaged()
-        correction += np.array(self.get_hardware_status()[0][0:2])
+        correction += np.array(self.get_hardware_status()["pos"])
         self.zero_steps()
         if abs(correction[0]) > self.config.PeakAbsorber.max_distance_error or abs(correction[1]) > self.config.PeakAbsorber.max_distance_error:
             self.lg.warning("Homing corrected by %s mm. The correction done by homing was too large to catch beamstops placed before the correction. You should repark all beamstops manually. Failure to do so may result in hardware damage.", str(correction))
@@ -194,7 +198,7 @@ class MovementUpdater(QObject):
         self.absorber_hardware = absorber_hardware
         self.lg = logging.getLogger("main.hardware.movementupdater")
 
-        self.status = None
+        self.status = {"pos": None, "gripper_pos": None, "motor_x_state": None, "motor_y_state": None, "gripper_state": None}
         self.motor_move_started = False
         self.gripper_move_started = False
         self.current_move = None
@@ -210,16 +214,16 @@ class MovementUpdater(QObject):
 
     def update(self):
         new_status = self.absorber_hardware.get_hardware_status()
-        if self.motor_move_started and new_status[1][0] != tango.DevState.MOVING and new_status[1][1] != tango.DevState.MOVING:
+        if self.motor_move_started and new_status["motor_x_state"] != tango.DevState.MOVING and new_status["motor_y_state"] != tango.DevState.MOVING:
             self.moveFinished.emit()
             self.set_idle()
         if self.current_move is not None:
-            self.current_move.update_pos((new_status[0][0], new_status[0][1]))
+            self.current_move.update_pos(new_status["pos"])
         if self.status != new_status:
-            self.posChanged.emit((new_status[0][0], new_status[0][1]))
+            self.posChanged.emit(new_status["pos"])
             self.status = new_status
-        if self.gripper_pos != new_status[0][2]:
-            self.gripper_pos = new_status[0][2]
+        if self.gripper_pos != new_status["gripper_pos"]:
+            self.gripper_pos = new_status["gripper_pos"]
             self.estimate_gripper_pos()
 
     def set_current_move(self, move):
