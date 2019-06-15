@@ -32,7 +32,6 @@ class PeakAbsorberHardware:
     def move_gripper(self, pos):
         self.lg.debug("moving gripper to %s", str(pos))
         self._gripper.value = pos
-        self.updater.set_gripper_moving()
         self.wait(self.config.PeakAbsorber.timeout_ms, self.updater.gripperFinished)
 
     def move_to_backlash(self, pos, slewrate="beamstop"):
@@ -200,7 +199,6 @@ class MovementUpdater(QObject):
 
         self.status = {"pos": None, "gripper_pos": None, "motor_x_state": None, "motor_y_state": None, "gripper_state": None}
         self.motor_move_started = False
-        self.gripper_move_started = False
         self.current_move = None
         self.gripper_pos = 0
         self.estimated_real_gripper_pos = 0
@@ -232,15 +230,10 @@ class MovementUpdater(QObject):
 
     def set_idle(self):
         self.motor_move_started = False
-        self.gripper_move_started = False
         self._timer.setInterval(1000 / self.config.PeakAbsorber.idle_polling_rate)
 
     def set_motor_moving(self):
         self.motor_move_started = True
-        self._timer.setInterval(1000 / self.config.PeakAbsorber.moving_polling_rate)
-
-    def set_gripper_moving(self):
-        self.gripper_move_started = True
         self._timer.setInterval(1000 / self.config.PeakAbsorber.moving_polling_rate)
 
     def estimate_gripper_pos(self):
