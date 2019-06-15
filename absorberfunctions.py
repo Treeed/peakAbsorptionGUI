@@ -18,7 +18,7 @@ class BeamstopMover:
         self.lg = logging.getLogger("main.absorberfunctions.beamstopmover")
 
         self.absorber_hardware.updater.posChanged.connect(self.im_view.crosshair.set_crosshair_pos)
-        self.absorber_hardware.updater.gripperChanged.connect(self.im_view.crosshair.set_crosshair_color)
+        self.absorber_hardware.updater.gripperEstimateChanged.connect(self.im_view.crosshair.set_crosshair_color)
 
     def rearrange_all_beamstops(self):
         self.lg.info("calulating beamstop assignment")

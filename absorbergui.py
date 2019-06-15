@@ -52,7 +52,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.logsplitter.button_bar.load_state.clicked.connect(self.file_handler.load_state_gui)
 
         self.absorber_hardware.updater.posChanged.connect(self.logsplitter.button_bar.pos_viewer.set_pos_value)
-        self.absorber_hardware.updater.gripperChanged.connect(self.logsplitter.button_bar.pos_viewer.set_gripper_value)
+        self.absorber_hardware.updater.gripperEstimateChanged.connect(self.logsplitter.button_bar.pos_viewer.set_gripper_value)
         self.logsplitter.button_bar.pos_viewer.go_button.clicked.connect(self.move_to_manual)
         self.logsplitter.button_bar.pos_viewer.gripper_viewer.clicked.connect(self.move_gripper_manual)
 

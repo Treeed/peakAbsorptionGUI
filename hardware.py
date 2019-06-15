@@ -186,7 +186,7 @@ class MovementUpdater(QObject):
     moveFinished = pyqtSignal()
     gripperFinished = pyqtSignal()
     posChanged = pyqtSignal(tuple)
-    gripperChanged = pyqtSignal(float)
+    gripperEstimateChanged = pyqtSignal(float)
 
     def __init__(self, config, absorber_hardware):
         super().__init__()
@@ -194,32 +194,32 @@ class MovementUpdater(QObject):
         self.absorber_hardware = absorber_hardware
         self.lg = logging.getLogger("main.hardware.movementupdater")
 
-        self.motor_moving = False
-        self.gripper_moving = False
+        self.status = None
+        self.motor_move_started = False
+        self.gripper_move_started = False
         self.current_move = None
-        self.last_status = None
-        self.last_gripper_pos = 0
+        self.gripper_pos = 0
         self.estimated_real_gripper_pos = 0
 
-        self.timer = QTimer()
-        self.timer.timeout.connect(self.update)
-        self.timer.start(1000/self.config.PeakAbsorber.idle_polling_rate)
+        self._timer = QTimer()
+        self._timer.timeout.connect(self.update)
+        self._timer.start(1000 / self.config.PeakAbsorber.idle_polling_rate)
 
-        self.gripper_timer = QTimer()
-        self.gripper_timer.timeout.connect(self.update_gripper_pos)
+        self._gripper_timer = QTimer()
+        self._gripper_timer.timeout.connect(self.update_gripper_pos)
 
     def update(self):
-        status = self.absorber_hardware.get_hardware_status()
-        if self.motor_moving and status[1][0] != tango.DevState.MOVING and status[1][1] != tango.DevState.MOVING:
+        new_status = self.absorber_hardware.get_hardware_status()
+        if self.motor_move_started and new_status[1][0] != tango.DevState.MOVING and new_status[1][1] != tango.DevState.MOVING:
             self.moveFinished.emit()
             self.set_idle()
         if self.current_move is not None:
-            self.current_move.update_pos((status[0][0], status[0][1]))
-        if self.last_status != status:
-            self.posChanged.emit((status[0][0], status[0][1]))
-            self.last_status = status
-        if self.last_gripper_pos != status[0][2]:
-            self.last_gripper_pos = status[0][2]
+            self.current_move.update_pos((new_status[0][0], new_status[0][1]))
+        if self.status != new_status:
+            self.posChanged.emit((new_status[0][0], new_status[0][1]))
+            self.status = new_status
+        if self.gripper_pos != new_status[0][2]:
+            self.gripper_pos = new_status[0][2]
             self.estimate_gripper_pos()
 
     def set_current_move(self, move):
@@ -227,36 +227,36 @@ class MovementUpdater(QObject):
         self.current_move = move
 
     def set_idle(self):
-        self.motor_moving = False
-        self.gripper_moving = False
-        self.timer.setInterval(1000/self.config.PeakAbsorber.idle_polling_rate)
+        self.motor_move_started = False
+        self.gripper_move_started = False
+        self._timer.setInterval(1000 / self.config.PeakAbsorber.idle_polling_rate)
 
     def set_motor_moving(self):
-        self.motor_moving = True
-        self.timer.setInterval(1000/self.config.PeakAbsorber.moving_polling_rate)
+        self.motor_move_started = True
+        self._timer.setInterval(1000 / self.config.PeakAbsorber.moving_polling_rate)
 
     def set_gripper_moving(self):
-        self.gripper_moving = True
-        self.timer.setInterval(1000/self.config.PeakAbsorber.moving_polling_rate)
+        self.gripper_move_started = True
+        self._timer.setInterval(1000 / self.config.PeakAbsorber.moving_polling_rate)
 
     def estimate_gripper_pos(self):
         self.lg.debug("gripper changed state")
-        self.estimated_real_gripper_pos = float(not self.last_gripper_pos)
-        self.gripper_timer.start(1000/self.config.PeakAbsorber.moving_polling_rate)
+        self.estimated_real_gripper_pos = float(not self.gripper_pos)
+        self._gripper_timer.start(1000 / self.config.PeakAbsorber.moving_polling_rate)
 
     def update_gripper_pos(self):
-        if self.last_gripper_pos:
+        if self.gripper_pos:
             self.estimated_real_gripper_pos += 1/self.config.PeakAbsorber.moving_polling_rate/(self.config.PeakAbsorber.gripper_time_ms/1000)
-        elif not self.last_gripper_pos:
+        elif not self.gripper_pos:
             self.estimated_real_gripper_pos -= 1/self.config.PeakAbsorber.moving_polling_rate/(self.config.PeakAbsorber.gripper_time_ms/1000)
 
         if self.estimated_real_gripper_pos >= 1 or self.estimated_real_gripper_pos <= 0:
-            self.gripper_timer.stop()
+            self._gripper_timer.stop()
             self.set_idle()
-            self.estimated_real_gripper_pos = self.last_gripper_pos
+            self.estimated_real_gripper_pos = self.gripper_pos
             self.gripperFinished.emit()
 
-        self.gripperChanged.emit(self.estimated_real_gripper_pos)
+        self.gripperEstimateChanged.emit(self.estimated_real_gripper_pos)
 
 
 class HardwareError(Exception):
