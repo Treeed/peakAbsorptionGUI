@@ -175,13 +175,10 @@ class PositionViewer(QtWidgets.QGroupBox):
     def set_gripper_value(self, value):
         if value == 1:
             self.gripper_viewer.setText("down")
-            self.gripper_viewer.setDisabled(0)
         elif value == 0:
             self.gripper_viewer.setText("up")
-            self.gripper_viewer.setDisabled(0)
         else:
             self.gripper_viewer.setText("moving")
-            self.gripper_viewer.setDisabled(1)
 
 
 class DisableButtons:
