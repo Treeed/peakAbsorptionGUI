@@ -79,6 +79,24 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.absorber_hardware.move_gripper(0)
 
     def move_to_manual(self):
+        if self.hardware_updater.estimated_real_gripper_pos != 0:
+            warning = QtWidgets.QMessageBox()
+            warning.setText("""The Gripper is Down! \nMoving with the gripper down can cause beamstops to be pushed into unknown places and cause serious hardware damage if done incorrectly""")
+            move_up_button = QtWidgets.QPushButton("Move gripper up first")
+            continue_button = QtWidgets.QPushButton("Continue anyway")
+            cancel_button = QtWidgets.QPushButton("Cancel Movement")
+            # I arranged the roles like this because at least on windows the accept role is the first button
+            warning.addButton(move_up_button, QtWidgets.QMessageBox.AcceptRole)
+            warning.addButton(continue_button, QtWidgets.QMessageBox.ActionRole)
+            warning.addButton(cancel_button, QtWidgets.QMessageBox.RejectRole)
+            warning.setDefaultButton(move_up_button)
+            warning.exec()
+
+            if warning.clickedButton() == move_up_button:
+                self.absorber_hardware.move_gripper(0)
+            elif warning.clickedButton() != continue_button:
+                return
+
         with DisableButtons(self.hardware_buttons):
             self.absorber_hardware.move_to_backlash((self.logsplitter.button_bar.pos_viewer.posX_viewer.value(), self.logsplitter.button_bar.pos_viewer.posY_viewer.value()))
 
