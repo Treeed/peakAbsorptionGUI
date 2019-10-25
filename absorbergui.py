@@ -53,6 +53,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.logsplitter.button_bar.home.clicked.connect(self.home)
         self.logsplitter.button_bar.save_state.clicked.connect(self.file_handler.save_state_gui)
         self.logsplitter.button_bar.load_state.clicked.connect(self.file_handler.load_state_gui)
+        self.logsplitter.button_bar.stop.clicked.connect(self.absorber_hardware.stop)
 
         self.hardware_updater.posChanged.connect(self.image_view.crosshair.set_crosshair_pos)
         self.hardware_updater.posChanged.connect(self.logsplitter.button_bar.pos_viewer.set_pos_value)
@@ -64,11 +65,21 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def rearrange(self):
         with DisableButtons(self.hardware_buttons):
-            self.beamstop_mover.rearrange_all_beamstops()
+            # hardware moves can cause an emergency stop exception which is designed to
+            # cascade down to the last function that might automatically start more hardware moves so we catch it here
+            try:
+                self.beamstop_mover.rearrange_all_beamstops()
+            except hardware.EmergencyStop:
+                pass
 
     def home(self):
         with DisableButtons(self.hardware_buttons):
-            self.absorber_hardware.home()
+            # hardware moves can cause an emergency stop exception which is designed to
+            # cascade down to the last function that might automatically start more hardware moves so we catch it here
+            try:
+                self.absorber_hardware.home()
+            except hardware.EmergencyStop:
+                pass
 
     def move_gripper_manual(self):
         with DisableButtons(self.hardware_buttons):
@@ -98,7 +109,12 @@ class MainWindow(QtWidgets.QMainWindow):
                 return
 
         with DisableButtons(self.hardware_buttons):
-            self.absorber_hardware.move_to_backlash((self.logsplitter.button_bar.pos_viewer.posX_viewer.value(), self.logsplitter.button_bar.pos_viewer.posY_viewer.value()))
+            # hardware moves can cause an emergency stop exception which is designed to
+            # cascade down to the last function that might automatically start more hardware moves so we catch it here
+            try:
+                self.absorber_hardware.move_to_backlash((self.logsplitter.button_bar.pos_viewer.posX_viewer.value(), self.logsplitter.button_bar.pos_viewer.posY_viewer.value()))
+            except hardware.EmergencyStop:
+                pass
 
 
 class LogSplitter(QtWidgets.QSplitter):
@@ -132,6 +148,7 @@ class ButtonBar(QtWidgets.QWidget):
         self.home = QtWidgets.QPushButton("homing")
         self.save_state = QtWidgets.QPushButton("save current positions")
         self.load_state = QtWidgets.QPushButton("load positions")
+        self.stop = QtWidgets.QPushButton("STOP ALL MOVEMENTS")
         self.pos_viewer = PositionViewer(config)
 
         self._layout = QtWidgets.QVBoxLayout()
@@ -144,6 +161,7 @@ class ButtonBar(QtWidgets.QWidget):
         self._layout.addWidget(self.save_state)
         self._layout.addWidget(self.load_state)
         self._layout.addWidget(self.pos_viewer)
+        self._layout.addWidget(self.stop)
         self._layout.addStretch()
 
         self.setLayout(self._layout)

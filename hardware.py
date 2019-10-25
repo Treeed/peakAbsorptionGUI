@@ -16,6 +16,8 @@ class PeakAbsorberHardware:
         self.updater = None
         self.lg = logging.getLogger("main.hardware.hardware")
 
+        self.raise_emergency_stop = False
+
     def move_beamstop(self, move):
         self.lg.info("moving beamstop %d to %s", move.beamstop_nr, str(move.target_pos))
         self.move_to(move.beamstop_pos, "travel")
@@ -177,13 +179,34 @@ class PeakAbsorberHardware:
         self._motor_x.SetStepPosition(0)
         self._motor_y.SetStepPosition(0)
 
-    @staticmethod
-    def wait(timeout, signal=None):
+    def wait(self, timeout, signal=None):
+        """
+        function to wait until either the timeout is reached or the signal is emitted
+        while waiting the QEventLoop is run
+        :param timeout: time to wait in ms
+        :param signal: signal to stop on
+        :raises emergencyStop when the raise_emergency_stop flag is set during the waittime
+        """
         loop = QEventLoop()
         QTimer.singleShot(timeout, loop.quit)
         if signal is not None:
             signal.connect(loop.quit)
+        # because this function is designed to wait for the hardware to move before the next move can be started
+        # we need to check if there was an emergency stop and if so keep the next moves from getting executed by raising an exception
+        self.raise_emergency_stop = False
         loop.exec()
+        if self.raise_emergency_stop:
+            raise EmergencyStop("estop was pressed while inside hardware class")
+
+    def stop(self):
+        """
+        stops any current move (whether started by the program or something else) and sets the raise emergency stop flag
+        this flag will cause an exception to be raised only if this function is started inside the eventloop inside the wait function of the hardware
+        this allows the stop button to be active at all times but only interrupt the program flow if the program is currently doing something to the hardware
+        """
+        self._motor_x.StopMove()
+        self._motor_y.StopMove()
+        self.raise_emergency_stop = True
 
 
 class MovementUpdater(QObject):
@@ -300,4 +323,13 @@ class HardwareError(Exception):
         :param str message: error message
         """
         self.action = action
+        self.message = message
+
+
+class EmergencyStop(Exception):
+    """
+    Exception to raise when the user presses the STOP buttton
+    """
+
+    def __init__(self, message):
         self.message = message
