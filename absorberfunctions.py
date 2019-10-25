@@ -265,9 +265,14 @@ class BeamstopMove:
 
     def remove_lines(self):
         self.im_view.trajectory_lines.remove_item(self.trajectory_line)
+        self.trajectory_line = None
 
     def finish_move(self):
         self.remove_lines()
+
+    def __del__(self):
+        if self.trajectory_line is not None:
+            self.remove_lines()
 
 
 class ConfigError(Exception):
