@@ -160,6 +160,17 @@ class BeamstopMover:
             self.absorber_hardware.move_beamstop(move)
         self.absorber_hardware.go_home()
 
+    def move_randomly(self):
+        """ function to randomly place handles and move beamstops to them in an infinite loop to test hardware function"""
+        if not len(self.beamstop_manager.beamstops):
+            self.lg.warning("no beamstops, aborting")
+            return
+        while True:
+            self.im_view.handles.reset_all_handles()
+            for beamstop in self.beamstop_manager.beamstops:
+                self.im_view.handles.add_handle(np.random.rand(2)*self.config.PeakAbsorber.limits)
+            self.rearrange_all_beamstops()
+
 
 class BeamstopManager:
     def __init__(self, config, im_view):

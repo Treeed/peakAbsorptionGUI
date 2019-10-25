@@ -54,6 +54,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.logsplitter.button_bar.save_state.clicked.connect(self.file_handler.save_state_gui)
         self.logsplitter.button_bar.load_state.clicked.connect(self.file_handler.load_state_gui)
         self.logsplitter.button_bar.stop.clicked.connect(self.absorber_hardware.stop)
+        self.logsplitter.button_bar.move_randomly.clicked.connect(self.move_randomly)
 
         self.hardware_updater.posChanged.connect(self.image_view.crosshair.set_crosshair_pos)
         self.hardware_updater.posChanged.connect(self.logsplitter.button_bar.pos_viewer.set_pos_value)
@@ -78,6 +79,15 @@ class MainWindow(QtWidgets.QMainWindow):
             # cascade down to the last function that might automatically start more hardware moves so we catch it here
             try:
                 self.absorber_hardware.home()
+            except hardware.EmergencyStop:
+                pass
+
+    def move_randomly(self):
+        with DisableButtons(self.hardware_buttons):
+            # hardware moves can cause an emergency stop exception which is designed to
+            # cascade down to the last function that might automatically start more hardware moves so we catch it here
+            try:
+                self.beamstop_mover.move_randomly()
             except hardware.EmergencyStop:
                 pass
 
@@ -148,8 +158,9 @@ class ButtonBar(QtWidgets.QWidget):
         self.home = QtWidgets.QPushButton("homing")
         self.save_state = QtWidgets.QPushButton("save current positions")
         self.load_state = QtWidgets.QPushButton("load positions")
-        self.stop = QtWidgets.QPushButton("STOP ALL MOVEMENTS")
+        self.move_randomly = QtWidgets.QPushButton("move randomly")
         self.pos_viewer = PositionViewer(config)
+        self.stop = QtWidgets.QPushButton("STOP ALL MOVEMENTS")
 
         self._layout = QtWidgets.QVBoxLayout()
         self._layout.addStretch()
@@ -160,6 +171,7 @@ class ButtonBar(QtWidgets.QWidget):
         self._layout.addWidget(self.re_arrange)
         self._layout.addWidget(self.save_state)
         self._layout.addWidget(self.load_state)
+        self._layout.addWidget(self.move_randomly)
         self._layout.addWidget(self.pos_viewer)
         self._layout.addWidget(self.stop)
         self._layout.addStretch()
