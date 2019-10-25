@@ -196,6 +196,7 @@ class PeakAbsorberHardware:
         self.raise_emergency_stop = False
         loop.exec()
         if self.raise_emergency_stop:
+            self.lg.warning("Stop button was pressed while performing moves, cancelling all further moves")
             raise EmergencyStop("estop was pressed while inside hardware class")
 
     def stop(self):
@@ -207,6 +208,7 @@ class PeakAbsorberHardware:
         self._motor_x.StopMove()
         self._motor_y.StopMove()
         self.raise_emergency_stop = True
+        self.lg.warning("Stop button was pressed; stopped all movements!")
 
 
 class MovementUpdater(QObject):
