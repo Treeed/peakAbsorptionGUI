@@ -285,12 +285,12 @@ class MovementUpdater(QObject):
         self.lg.debug("gripper changed state")
         if new_gripper_pos == 1:
             grabbed_beamstop_nr = np.argwhere(absorberfunctions.calc_vec_len(self.beamstop_manager.beamstops - self.status["pos"]) < self.config.PeakAbsorber.max_distance_error)
-            if grabbed_beamstop_nr:
+            if grabbed_beamstop_nr.size:
                 self.grabbed_beamstop_nr = grabbed_beamstop_nr[0][0]
             else:
                 self.grabbed_beamstop_nr = None
         if new_gripper_pos == 0:
-            if self.grabbed_beamstop_nr:
+            if self.grabbed_beamstop_nr is not None:
                 self.beamstop_manager.move(self.grabbed_beamstop_nr, self.status["pos"])
             self.grabbed_beamstop_nr = None
 
