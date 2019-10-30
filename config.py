@@ -54,7 +54,7 @@ class PeakAbsorber:
     # distance error above which you can't catch a beamstop anymore / below which a beamstop is succesfully centered in the gripper
     max_distance_error = 0.5
     # distance below which differences are considered insignificant and position of a beamstop does not have to be corrected.
-    # must be larger than the increments the tango server is counting in
+    # must be larger than the increments the tango server is counting in, e.g. the distance of one step
     epsilon = 0.1
     # virtual penalty distance added to parked beamstops to avoid moving them into the active area
     # this is used during the beamstop assignment to make sure all active beamstops are used up before parked ones get moved in

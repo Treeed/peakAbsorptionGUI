@@ -193,7 +193,7 @@ class BeamstopManager:
         self._beamstop_circles = []
 
     def add_beamstops(self, new_positions):
-        parked_beamstops = np.argwhere(np.isclose(calc_vec_len(self.config.ParkingPositions.parking_positions - new_positions[:, np.newaxis]), 0))
+        parked_beamstops = np.argwhere(calc_vec_len(self.config.ParkingPositions.parking_positions - new_positions[:, np.newaxis]) < self.config.PeakAbsorber.epsilon)
         if self._parking_position_occupied[parked_beamstops[:, 1]].any():
             self.lg.warning("cannot put beamstop on occupied parking position")
             return None
@@ -238,7 +238,7 @@ class BeamstopManager:
         # first free the parking position if we were on one (don't run occupy first or you'll free the one sou just occupied)
         self._free_parking_position(beamstop_nr)
         # then check if our new position is on a parking position and if so occupy that one
-        new_parking_spot = np.argwhere(np.isclose(calc_vec_len(self.config.ParkingPositions.parking_positions - pos), 0))
+        new_parking_spot = np.argwhere(calc_vec_len(self.config.ParkingPositions.parking_positions - pos) < self.config.PeakAbsorber.epsilon)
         if new_parking_spot.size:
             self._occupy_parking_position(new_parking_spot, beamstop_nr)
         self.beamstops[beamstop_nr] = pos
