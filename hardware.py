@@ -259,11 +259,12 @@ class MovementUpdater(QObject):
             else:
                 self.set_polling_rate("moving")
 
+        if self.status["gripper_pos"] != new_status["gripper_pos"]:
+            self._change_gripper(new_status)
+
         if self.status["pos"] != new_status["pos"]:
             self.posChanged.emit(new_status["pos"], (self.grabbed_beamstop_nr, ))
 
-        if self.status["gripper_pos"] != new_status["gripper_pos"]:
-            self._change_gripper(new_status)
 
         self.motors_ready = new_motors_ready
         self.status = new_status
