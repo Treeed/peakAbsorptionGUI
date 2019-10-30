@@ -263,7 +263,7 @@ class MovementUpdater(QObject):
             self.posChanged.emit(new_status["pos"], (self.grabbed_beamstop_nr, ))
 
         if self.status["gripper_pos"] != new_status["gripper_pos"]:
-            self._change_gripper(new_status["gripper_pos"])
+            self._change_gripper(new_status)
 
         self.motors_ready = new_motors_ready
         self.status = new_status
@@ -281,17 +281,17 @@ class MovementUpdater(QObject):
         self.motor_move_started = True
         self.set_polling_rate("moving")
 
-    def _change_gripper(self, new_gripper_pos):
+    def _change_gripper(self, new_status):
         self.lg.debug("gripper changed state")
-        if new_gripper_pos == 1:
-            grabbed_beamstop_nr = np.argwhere(absorberfunctions.calc_vec_len(self.beamstop_manager.beamstops - self.status["pos"]) < self.config.PeakAbsorber.max_distance_error)
+        if new_status["gripper_pos"] == 1:
+            grabbed_beamstop_nr = np.argwhere(absorberfunctions.calc_vec_len(self.beamstop_manager.beamstops - new_status["pos"]) < self.config.PeakAbsorber.max_distance_error)
             if grabbed_beamstop_nr.size:
                 self.grabbed_beamstop_nr = grabbed_beamstop_nr[0][0]
             else:
                 self.grabbed_beamstop_nr = None
-        if new_gripper_pos == 0:
+        if new_status["gripper_pos"] == 0:
             if self.grabbed_beamstop_nr is not None:
-                self.beamstop_manager.move(self.grabbed_beamstop_nr, self.status["pos"])
+                self.beamstop_manager.move(self.grabbed_beamstop_nr, new_status["pos"])
             self.grabbed_beamstop_nr = None
 
         # start estimating the real gripper pos
