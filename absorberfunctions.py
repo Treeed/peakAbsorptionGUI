@@ -34,8 +34,12 @@ class BeamstopMover:
             self.lg.info("nothing to move")
             return
 
+        self.lg.info("sorting moves")
+        # sort moves to have consecutive moves close to each other. This sorting might be changed in the next step if required to find a path
+        sorted_moves = self.sort_moves_distance(required_moves)
+
         self.lg.info("calulating paths")
-        solved_moves, unsolved_moves = self.calc_expected_collisions(required_moves)
+        solved_moves, unsolved_moves = self.calc_expected_collisions(sorted_moves)
         if unsolved_moves:
             if not solved_moves:
                 self.lg.warning("no solved moves, %d unsolved move(s), aborting movement", len(unsolved_moves))
@@ -109,6 +113,24 @@ class BeamstopMover:
             penalised_distances = distances
         combinations = np.array(scipy.optimize.linear_sum_assignment(penalised_distances))
         return combinations, distances[tuple(combinations)]
+
+    @staticmethod
+    def sort_moves_distance(moves):
+        """iteratively sorts the moves passed to it in a way so the first move is the one with the startpoint closest to 0,0
+        the second move is the one with the start point closest to the end point of the first move and so on
+        this is a simple way to reduce travel distance without a proper solver for transportation problems"""
+        # to be able to quickly calculate distances between lists of points we unpack to moves into numpy arrays
+        beamstop_positions = [move.beamstop_pos for move in moves]
+        target_positions = [move.target_pos for move in moves]
+        # to keep track which line originally was in which position the last column is just numbered from 0 to n
+        positions = np.swapaxes([beamstop_positions, target_positions, np.swapaxes([np.arange(len(moves)), np.arange(len(moves))], 0, 1)], 0, 1)
+        sorted_positions = np.array([[[0, 0], [0, 0], [0, 0]]])
+        while len(positions):
+            next_closest = np.argmin(calc_vec_len(positions[:, 0]-sorted_positions[-1, 1]))
+            sorted_positions = np.append(sorted_positions, [positions[next_closest]], 0)
+            positions = np.delete(positions, next_closest, 0)
+        # we return the moves in the new order given by the indices in the last column except the first row which was the start point
+        return [moves[x] for x in sorted_positions[1:, 2, 0].astype(int)]
 
     def calc_expected_collisions(self, moves):
         """
