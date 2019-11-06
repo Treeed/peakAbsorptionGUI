@@ -4,7 +4,7 @@ import pathfinder
 import numpy as np
 import scipy.optimize
 
-from PyQt5 import QtGui
+from PyQt5 import QtGui, QtWidgets
 import logging
 
 
@@ -141,6 +141,10 @@ class BeamstopMover:
         :moves: the moves to find a path for
         :returns (solved moves: moves with paths in order of execution, unsolved moves: moves for which no path could be found
         """
+        progressbar = QtWidgets.QProgressDialog("Calculating Movements...", "Cancel", 0, len(moves))
+        progressbar.setModal(True)
+        progressbar.setMinimumDuration(50)
+
         unsolved_moves = moves.copy()
         solved_moves = []
         simulation_beamstops = self.beamstop_manager.beamstops.copy()
@@ -155,6 +159,8 @@ class BeamstopMover:
                 solved_moves.append(move)
                 move.add_line()
                 simulation_beamstops[move.beamstop_nr] = move.target_pos
+                progressbar.setValue(len(solved_moves))
+        progressbar.setValue(len(moves))
         return solved_moves, unsolved_moves
 
     def calc_path(self, move, beamstops):
