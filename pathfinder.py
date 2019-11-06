@@ -94,12 +94,52 @@ def find_obstacle_corners(line, obstacles, radius, absorber_limits):
     :param absorber_limits: limits of the absorber in x and y direction as [limitx, limity]
     :return corners of the squares around the circles that intersect with the line
     """
-    in_the_way = obstacles[find_collisions(line, obstacles, radius)]
-    # compile a list of corners of a square around the circle with edge length 2radius
-    radius = radius + .01  # TODO: find solution for this
-    obstacle_corners = np.concatenate([in_the_way+[radius, radius], in_the_way+[radius, -radius], in_the_way+[-radius, radius], in_the_way+[-radius, -radius]])
+
+    # extra space the squares have around the circlke to be able to pass along a side without touching
+    extra_around = 0.001  # TODO: find solution for this
+    square_radius = radius+extra_around
+
+    # find all obstacles the line directly crosses (outputs boolean mask)
+    obstacles_in_the_way = find_collisions(line, obstacles, radius)
+
+    # boolean mask, every checked obstacle gets a True here
+    obstacles_checked = np.zeros(len(obstacles), dtype=bool)
+    obstacle_corners = []
+    # now check if the corners are in the area of another beamstop and if so use this beamstops corners rather than the one found
+    while np.any(obstacles_in_the_way):
+        new_corners = get_corners(obstacles[obstacles_in_the_way], radius+extra_around)
+        # for each group of corners we need to know where they came from because they will intersect with the obstacle they came from
+        new_corner_beamstops = np.where(obstacles_in_the_way)
+        # we have the corners of these beamstops so mark them checked and reset the list to check for next round
+        obstacles_checked = np.logical_or(obstacles_in_the_way, obstacles_checked)
+        obstacles_in_the_way = np.zeros(len(obstacles), dtype=bool)
+
+        for beamstop, corners in zip(new_corner_beamstops, new_corners):
+            for corner in corners:
+                # TODO: fix extra_around/10, this is that things that almost line up are still registered as intersecting,
+                #  this is ok because the distance around which we remove points here is less than the tolerance added around the square so we still get around the circles
+                on_the_corner = np.all(np.hstack([corner <= obstacles+(square_radius+extra_around/10), corner >= obstacles-(square_radius+extra_around/10)]), axis=1)
+                # don't redo the beamstop the corner came from
+                on_the_corner[beamstop] = False
+                if np.any(on_the_corner):
+                    # if the corner intersects with another beamstops square mark it as new thing to check
+                    obstacles_in_the_way = np.logical_or(on_the_corner, obstacles_in_the_way)
+                else:
+                    # if the corner is free it is an outside corner we use to go around the obstacle later
+                    obstacle_corners.append(corner)
+        obstacles_in_the_way = np.logical_and(obstacles_in_the_way, np.logical_not(obstacles_checked))
+
+    if not obstacle_corners:
+        return np.empty((0, 2))
+
+    obstacle_corners = np.array(obstacle_corners)
     # return all corners that are within the peakabsorber limits
     return obstacle_corners[np.all([obstacle_corners[:, 0] > 0, obstacle_corners[:, 1] > 0, obstacle_corners[:, 0] < absorber_limits[0], obstacle_corners[:, 1] < absorber_limits[1]], axis=0)]
+
+
+def get_corners(middle, radius):
+    # compile a list of corners of a square around the circle with edge length 2radius
+    return np.swapaxes([middle+[radius, radius], middle+[radius, -radius], middle+[-radius, radius], middle+[-radius, -radius]], 0, 1)
 
 
 def find_collisions(line, obstacles, radius):
