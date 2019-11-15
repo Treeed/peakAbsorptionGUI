@@ -31,7 +31,7 @@ class PeakAbsorberHardware:
 
     def move_gripper(self, pos):
         self.lg.debug("moving gripper to %s", str(pos))
-        self._gripper.value = pos
+        self._gripper.write_attribute(self.config.PeakAbsorber.gripper_attribute, pos)
         self.wait(self.config.PeakAbsorber.timeout_ms, self.updater.gripperFinished)
 
     def move_to_backlash(self, pos, slewrate="beamstop"):
@@ -89,7 +89,7 @@ class PeakAbsorberHardware:
     def get_hardware_status(self):
         status = {}
         status["pos"] = self._motor_x.position, self._motor_y.position
-        status["gripper_pos"] = self._gripper.value
+        status["gripper_pos"] = self._gripper.read_attribute(self.config.PeakAbsorber.gripper_attribute).value
         status["motor_x_state"] = self._motor_x.state()
         status["motor_y_state"] = self._motor_y.state()
         status["gripper_state"] = self._gripper.state()

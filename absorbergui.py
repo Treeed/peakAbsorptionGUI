@@ -20,7 +20,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.lg = logging.getLogger("main.gui")
 
         self.lg.info("importing config")
-        import testconfig as config
+        import config as config
 
         self.lg.info("initializing gui")
         self.logsplitter = LogSplitter(config, self.status_monitor)

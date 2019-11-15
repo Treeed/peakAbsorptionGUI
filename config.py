@@ -7,9 +7,10 @@ import pyqtgraph as pg
 class PeakAbsorber:
     # address of the tango server and paths to the motors
     tango_server = 'haspp02oh1:10000/'
-    motor_x_path = 'p02/motor/elab.01'
-    motor_y_path = 'p02/motor/elab.02'
-    gripper_path = 'p02/register/elab.out08'
+    motor_x_path = 'p02/motor/eh2b.80'
+    motor_y_path = 'p02/motor/eh2b.78'
+    gripper_path = 'p02/spseh2/eh2a.01'
+    gripper_attribute = 'GPValve8'
 
     # rates at which the values of the tango servers are polled, when idle and when moving a beamstop respectively in Hz
     idle_polling_rate = 5
@@ -32,8 +33,8 @@ class PeakAbsorber:
     # This is mostly relevant because of the lower magnet being dragged behind and attracting the top magnet back
     backlash = 1.5
 
-    # positive limits of the drive mechanism (negative limits are always zero)
-    limits = np.array([500, 495])
+    # positive limits of the drive mechanism (negative limits are always zero) plus backlash
+    limits = np.array([478.5, 490.5])
     # radius of one beamstop for display and collision detection
     beamstop_radius = 2.5
     # time it takes the gripper to fully extend or retract after the corresponding bit as been set on the tango server
@@ -47,12 +48,12 @@ class PeakAbsorber:
     # time after which a single move is aborted and considered failed
     timeout_ms = 100000
     # distance in mm we need to move out of the limit switch to make sure it definitely turns off
-    limit_switch_max_hysterisis = [1, 1]
+    limit_switch_max_hysterisis = [2, 2]
     # motor direction in which the coordinate values decrease / side on which the limit switch that represents the origin is for axes [x, y]
     # each axis can be "cw" or "ccw"
     zero_limit = ["ccw", "ccw"]
     # distance error above which you can't catch a beamstop anymore / below which a beamstop is succesfully centered in the gripper
-    max_distance_error = 0.5
+    max_distance_error = 0.3
     # distance below which differences are considered insignificant and position of a beamstop does not have to be corrected.
     # must be larger than the increments the tango server is counting in, e.g. the distance of one step
     epsilon = 0.1
@@ -66,12 +67,12 @@ class Detector:
     # size of the active area of the detector. This is only used for the box shown in the gui
     active_area = np.array([409.6, 409.6])
     # position of the lower left corner of the detector relative to the minimum position of the drive mechanism
-    detector_origin = np.array([65, -10])
+    detector_origin = np.array([84, 2])
     # size of one pixel in x and y
     # this is used to scale the image, so picture-resolution*pixel_size should match the "active area"
     pixel_size = np.array([0.200, 0.200])
     # manipulations to apply to the image in order. Any number of manipulations can be inserted. Available are "rot90" "rot180" "rot270" "mir_horiz" "mir_vert"
-    image_manipulations = []
+    image_manipulations = ["rot90", "mir_horiz"]
 
 
 class Gui:
@@ -89,4 +90,4 @@ class Gui:
 
 
 class ParkingPositions:
-    parking_positions = np.array([[28.5, 10.5 + 15 * beamstop_nr] for beamstop_nr in range(25)])
+    parking_positions = np.array([[7, 9.2 + 15 * beamstop_nr] for beamstop_nr in range(25)])
